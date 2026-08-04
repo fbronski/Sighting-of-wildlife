@@ -8,4 +8,20 @@ Local wildlife monitoring system for reliable detection and analysis of animal a
    - I would also recommend connecting the camera to an old 12-volt car battery housed in a waterproof plastic box designed for boatbuilding, so that you don’t have to change the AA batteries every week; a small 50–60 Ah car battery lasts me at least six months without needing recharging.
    - and last but not least, a pay-as-you-go SIM card with a monthly data allowance of 3–5 GB per trail camera
 - <img width="312" height="360" alt="Bildschirmfoto 2026-08-04 um 21 05 26" src="https://github.com/user-attachments/assets/b3492ef7-c37d-4a3c-9ee4-ddf70087a543" />
+2. Software:
+  - ...Comming soon
+3. Installation:
+  - ...Install & Configure Kameras
+  - ...Install Linux
+  - ...Install VFTP
+  - ...Install Immich Photo App
+4. Build IOS App
+  - ...build Cooming soon
+  - ...configure IOS APP
+5. Build Linux .Net 10 Bot called JagdBildBot
+  - ...build Comming soon
+  - ...configure JagdBildBot
+
+6. Joy and Fun with your Sighting of Wildlife
+   
 
