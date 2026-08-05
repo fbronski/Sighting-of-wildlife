@@ -20,10 +20,10 @@ Local wildlife monitoring system for reliable detection and analysis of animal a
   <img width="1536" height="1024" alt="ChatGPT Image 5  Aug  2026, 19_26_27" src="https://github.com/user-attachments/assets/b1708c5e-dd7d-4142-a03d-edd856b5da88" />
 
 3. Installation:
-  - ...Install & Configure Kameras
   - ...Install Linux
   - ...Install VFTP
   - ...Install Immich Photo App
+  - ...Install & Configure Kameras
 4. Build IOS App
   - ...build Cooming soon
   - ...configure IOS APP
