@@ -13,7 +13,11 @@ Local wildlife monitoring system for reliable detection and analysis of animal a
   - Secondly, I’m using the Immich app (Community Edition) to install it on your home server. You can find the Immich project here. https://github.com/immich-app/immich, Please also support the Immich team in their work on the incredible Immich app – developing something like this and offering it to the community for free is simply brilliant.
   - Thirdly, you’ll need my piece of software called <ins>**JagdBildBot**</ins>, which processes the photos received from the trail cameras, automatically recognises them using YOLO, tags and plots them where necessary, notifies you via push notification on the iOS app when new sightings are detected, uploads the received image to the Immich app via the Immich API, and adds it to an album created on Immich.
   - Fourthly, you’ll need the iOS app ‘Wildsichtungen’ to receive the images, push notifications and manage the results. Both the iOS app and the JagdBildBot service are included in this repository. At the moment, I haven’t released the Wildsichtungen app on the Apple App Store, which means that to get it onto your Apple iPhone, you’ll need to deploy it there via Xcode using your Apple Developer Account. If I receive any requests, I’ll certainly add it to the Store without the usual advertising clutter if i get more than once requests.
-  - 
+  - And finally, you’ll need some OS tools: Docker, VFTP and UFW. In the installation guide, I’ll explain how to install and set these up on Linux Ubuntu 26.04. You’ll also need your own subdomain, such as sichtung.domain.de, as well as the ability to receive data over the internet via FTP or FTP/S, which usually requires your own IP address.
+  - **If this isn’t a problem for you, please proceed to the next step of the installation and roll-out of the software**
+
+  **Schematische Darstellung**
+  
 3. Installation:
   - ...Install & Configure Kameras
   - ...Install Linux
