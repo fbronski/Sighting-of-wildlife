@@ -16,8 +16,9 @@ Local wildlife monitoring system for reliable detection and analysis of animal a
   - And finally, you’ll need some OS tools: Docker, VFTP and UFW. In the installation guide, I’ll explain how to install and set these up on Linux Ubuntu 26.04. You’ll also need your own subdomain, such as sichtung.domain.de, as well as the ability to receive data over the internet via FTP or FTP/S, which usually requires your own IP address.
   - **If this isn’t a problem for you, please proceed to the next step of the installation and roll-out of the software**
 
-  **Schematische Darstellung**
-  
+  **Schematic representation**
+  <img width="1536" height="1024" alt="ChatGPT Image 5  Aug  2026, 17_43_40" src="https://github.com/user-attachments/assets/18c57cdf-5392-463d-a305-cf12613071f6" />
+
 3. Installation:
   - ...Install & Configure Kameras
   - ...Install Linux
