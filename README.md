@@ -9,7 +9,10 @@ Local wildlife monitoring system for reliable detection and analysis of animal a
    - and last but not least, a pay-as-you-go SIM card with a monthly data allowance of 3–5 GB per trail camera
 - <img width="312" height="360" alt="Bildschirmfoto 2026-08-04 um 21 05 26" src="https://github.com/user-attachments/assets/b3492ef7-c37d-4a3c-9ee4-ddf70087a543" />
 2. Software:
-  - ...Comming soon
+  - First of all, you’ll need an operating system that supports Docker for containerisation – this could be Linux, macOS or Linux. The important thing is that this OS supports .NET 10 builds. Personally, I use Linux, specifically the Ubuntu Server LTS 26.04 distribution, without any unnecessary bells and whistles that would just waste resources. Depending on how many trail cameras you’re using – in my case, four – I’d recommend 2–4 CPUs, 4–8 GB of RAM and 150–300 GB of hard disk space on Ubuntu.
+  - Secondly, I’m using the Immich app (Community Edition) to install it on your home server. You can find the Immich project here. https://github.com/immich-app/immich, Please also support the Immich team in their work on the incredible Immich app – developing something like this and offering it to the community for free is simply brilliant.
+  - Thirdly, you’ll need my piece of software called **JagdBildBot**, which processes the photos received from the trail cameras, automatically recognises them using YOLO, tags and plots them where necessary, notifies you via push notification on the iOS app when new sightings are detected, uploads the received image to the Immich app via the Immich API, and adds it to an album created on Immich.
+  - 
 3. Installation:
   - ...Install & Configure Kameras
   - ...Install Linux
