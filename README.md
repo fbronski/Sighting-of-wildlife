@@ -24,6 +24,9 @@ Local wildlife monitoring system for reliable detection and analysis of animal a
   - Install VFTP Docker .Net 10 on your OS (here Linux ubuntu 26.04)
       - Update your Ubunutu with "sudo apt update" and "sudo apt upgrade -y"
       - VFTP with "sudo apt install vsftp"
+        - On the VFTP konfiguration is it is very important to Use passiv mode, and you running FTP or FTP/S both not both zhere are an security issue
+          <img width="625" height="693" alt="Bildschirmfoto 2026-08-06 um 13 05 08" src="https://github.com/user-attachments/assets/4ca5157c-bd78-44e8-8a8f-c53a19665145" />
+
       - .Net 10 SDK and Runtime with "sudo snap install dotnet-sdk"
       - Docker with "sudo apt install docker.io util-linux-extra"
       - **Important: _Please switch your Firewall here UFW to ON and open only your FTP or FTP/S and HTTPS ports_**
@@ -34,7 +37,7 @@ Local wildlife monitoring system for reliable detection and analysis of animal a
 
   - Install & Configure Kameras
       - Please select your camera settings, in particular the image quality, the interval between images, and the sensitivity of the motion detector sensor. Configure the FTP service settings, specifying the transfer protocol (FTP or FTPS), the IP address of your Linux system (please do not use domain names), the username and password, and the IP port to be used (e.g. 21 for FTP). 
-4. Build IOS App
+4. IOS App
   - ...build Cooming soon
   - ...configure IOS APP
 5. Build Linux .Net 10 Bot called JagdBildBot
