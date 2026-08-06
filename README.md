@@ -20,8 +20,12 @@ Local wildlife monitoring system for reliable detection and analysis of animal a
 
 3. Installation:
   - Install Linux
-    - Es gibt viele wege
-  - ...Install VFTP Docker
+    - There are indeed many ways to install a fully functional Linux system; if you do not wish to do this, I recommend setting up a virtual machine (VM) with a cloud provider of your choice. Please check the privacy policy, as well as the data protection regulations of the country in which the data centre is located. Within the EU, I recommend the data centre operated by UniCom Service GmbH in Cologne; UniCom will also be happy to assist you with sourcing trail cameras and so on.
+  - Install VFTP Docker .Net 10 on your OS (here Linux ubuntu 26.04)
+      - Update your Ubunutu with "sudo apt update" and "sudo apt upgrade -y"
+      - VFTP with "sudo apt install vsftp"
+      - .Net 10 SDK and Runtime with "sudo snap install dotnet-sdk"
+      - Docker with "sudo apt install docker.io util-linux-extra" 
   - ...Install Immich Photo App
   - ...Install & Configure Kameras
 4. Build IOS App
