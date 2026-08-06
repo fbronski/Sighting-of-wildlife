@@ -26,7 +26,7 @@ Local wildlife monitoring system for reliable detection and analysis of animal a
       - VFTP with "sudo apt install vsftp"
       - .Net 10 SDK and Runtime with "sudo snap install dotnet-sdk"
       - Docker with "sudo apt install docker.io util-linux-extra"
-      - **Important: _Please switch your Firewall here UFW to ON and open only your FTP or FTP/S and HTTPS ports_ **
+      - **Important: _Please switch your Firewall here UFW to ON and open only your FTP or FTP/S and HTTPS ports_**
   - Install Immich Photo App
       - Install Immich on Docker see [Immich Docker Installation Guide](https://docs.immich.app/install/docker-compose) 
   - ...Install & Configure Kameras
