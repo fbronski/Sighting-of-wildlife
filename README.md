@@ -19,8 +19,9 @@ Local wildlife monitoring system for reliable detection and analysis of animal a
   - **If this isn’t a problem for you, please proceed to the next step of the installation and roll-out of the software**
 
 3. Installation:
-  - ...Install Linux
-  - ...Install VFTP
+  - Install Linux
+  - - Es gibt viele wege
+  - ...Install VFTP Docker
   - ...Install Immich Photo App
   - ...Install & Configure Kameras
 4. Build IOS App
