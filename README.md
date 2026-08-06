@@ -20,7 +20,7 @@ Local wildlife monitoring system for reliable detection and analysis of animal a
 
 3. Installation:
   - Install Linux
-  - - Es gibt viele wege
+    - Es gibt viele wege
   - ...Install VFTP Docker
   - ...Install Immich Photo App
   - ...Install & Configure Kameras
