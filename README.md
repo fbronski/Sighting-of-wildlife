@@ -28,8 +28,12 @@ Local wildlife monitoring system for reliable detection and analysis of animal a
       - Docker with "sudo apt install docker.io util-linux-extra"
       - **Important: _Please switch your Firewall here UFW to ON and open only your FTP or FTP/S and HTTPS ports_**
   - Install Immich Photo App
-      - Install Immich on Docker see [Immich Docker Installation Guide](https://docs.immich.app/install/docker-compose) 
-  - ...Install & Configure Kameras
+      - Install Immich on Docker see [Immich Docker Installation Guide](https://docs.immich.app/install/docker-compose)
+        Once Immich has been successfully deployed on Docker and the necessary domain, firewall and certificate installations have been completed, Immich might look like this.
+        <img width="5712" height="4284" alt="IMG_2073" src="https://github.com/user-attachments/assets/9c8047de-3327-4cf1-b5ee-5b34bb563acd" />
+
+  - Install & Configure Kameras
+      - Please select your camera settings, in particular the image quality, the interval between images, and the sensitivity of the motion detector sensor. Configure the FTP service settings, specifying the transfer protocol (FTP or FTPS), the IP address of your Linux system (please do not use domain names), the username and password, and the IP port to be used (e.g. 21 for FTP). 
 4. Build IOS App
   - ...build Cooming soon
   - ...configure IOS APP
