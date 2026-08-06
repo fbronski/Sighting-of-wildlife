@@ -1,6 +1,8 @@
 # Sighting-of-wildlife
 Local wildlife monitoring system for reliable detection and analysis of animal activity. All data is processed and stored on-site—without relying on third-party cloud providers. This ensures full data control, high reliability, and privacy-friendly operation.
-
+**Schematic representation**
+<img width="1536" height="1024" alt="ChatGPT Image 6  Aug  2026, 11_43_31" src="https://github.com/user-attachments/assets/e1284f69-e00b-44df-a57e-ccc70eb1acb9" />
+  
 ## What components does the project consist of?
 1. Hardware:
     - You’ll need a small server or a VM from a cloud provider of your choice; personally, I run mine on a mini server in the basement of my house             I’m      using a Lenovo ThinkCentre M920q MP there.
@@ -15,9 +17,6 @@ Local wildlife monitoring system for reliable detection and analysis of animal a
   - Fourthly, you’ll need the iOS app ‘Wildsichtungen’ to receive the images, push notifications and manage the results. Both the iOS app and the JagdBildBot service are included in this repository. At the moment, I haven’t released the Wildsichtungen app on the Apple App Store, which means that to get it onto your Apple iPhone, you’ll need to deploy it there via Xcode using your Apple Developer Account. If I receive any requests, I’ll certainly add it to the Store without the usual advertising clutter if i get more than once requests.
   - And finally, you’ll need some OS tools: Docker, VFTP and UFW. In the installation guide, I’ll explain how to install and set these up on Linux Ubuntu 26.04. You’ll also need your own subdomain, such as sichtung.domain.de, as well as the ability to receive data over the internet via FTP or FTP/S, which usually requires your own IP address.
   - **If this isn’t a problem for you, please proceed to the next step of the installation and roll-out of the software**
-
-  **Schematic representation**
-  <img width="1536" height="1024" alt="ChatGPT Image 5  Aug  2026, 19_26_27" src="https://github.com/user-attachments/assets/b1708c5e-dd7d-4142-a03d-edd856b5da88" />
 
 3. Installation:
   - ...Install Linux
