@@ -40,14 +40,10 @@ Local wildlife monitoring system for reliable detection and analysis of animal a
       - Please select your camera settings, in particular the image quality, the interval between images, and the sensitivity of the motion detector sensor. Configure the FTP service settings, specifying the transfer protocol (FTP or FTPS), the IP address of your Linux system (please do not use domain names), the username and password, and the IP port to be used (e.g. 21 for FTP). 
 4. IOS App
   - 
-
 https://github.com/user-attachments/assets/aa03d0c9-833c-42d2-a658-3a0d7d6f8485
 
-
-
-
-  - ...build Cooming soon
-  - ...configure IOS APP
+  - To build the iOS app, you’ll need an Apple Developer Account, Xcode installed on your Mac, and the Xcode project containing the source code, which can be found here in the GitHub repository under ‘source’ 
+  - The Wild Sichtung iOS app still requires the settings for your Immich URL and the corresponding API, which you can easily create within your Immich instance, as well as, optionally, your FTP service (for plotting detected wildlife).
 5. Build Linux .Net 10 Bot called JagdBildBot
   - ...build Comming soon
   - ...configure JagdBildBot
