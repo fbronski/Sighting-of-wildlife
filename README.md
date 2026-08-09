@@ -13,8 +13,8 @@ Local wildlife monitoring system for reliable detection and analysis of animal a
 2. Software:
   - First of all, you’ll need an operating system that supports Docker for containerisation – this could be Linux, macOS or Linux. The important thing is that this OS supports .NET 10 builds. Personally, I use Linux, specifically the Ubuntu Server LTS 26.04 distribution, without any unnecessary bells and whistles that would just waste resources. Depending on how many trail cameras you’re using – in my case, four – I’d recommend 2–4 CPUs, 4–8 GB of RAM and 150–300 GB of hard disk space on Ubuntu.
   - Secondly, I’m using the Immich app (Community Edition) to install it on your home server. You can find the Immich project here. https://github.com/immich-app/immich, Please also support the Immich team in their work on the incredible Immich app – developing something like this and offering it to the community for free is simply brilliant.
-  - Thirdly, you’ll need my piece of software called <ins>**JagdBildBot**</ins>, which processes the photos received from the trail cameras, automatically recognises them using YOLO, tags and plots them where necessary, notifies you via push notification on the iOS app when new sightings are detected, uploads the received image to the Immich app via the Immich API, and adds it to an album created on Immich.
-  - Fourthly, you’ll need the iOS app ‘Wildsichtungen’ to receive the images, push notifications and manage the results. Both the iOS app and the JagdBildBot service are included in this repository. At the moment, I haven’t released the Wildsichtungen app on the Apple App Store, which means that to get it onto your Apple iPhone, you’ll need to deploy it there via Xcode using your Apple Developer Account. If I receive any requests, I’ll certainly add it to the Store without the usual advertising clutter if i get more than once requests.
+  - Thirdly, you’ll need my piece of software called <ins>**WildLifeBildBot**</ins>, which processes the photos received from the trail cameras, automatically recognises them using YOLO, tags and plots them where necessary, notifies you via push notification on the iOS app when new sightings are detected, uploads the received image to the Immich app via the Immich API, and adds it to an album created on Immich.
+  - Fourthly, you’ll need the iOS app ‘Wildsichtungen’ to receive the images, push notifications and manage the results. Both the iOS app and the WildLifeBildBot service are included in this repository. At the moment, I haven’t released the Wildsichtungen app on the Apple App Store, which means that to get it onto your Apple iPhone, you’ll need to deploy it there via Xcode using your Apple Developer Account. If I receive any requests, I’ll certainly add it to the Store without the usual advertising clutter if i get more than once requests.
   - And finally, you’ll need some OS tools: Docker, VFTP and UFW. In the installation guide, I’ll explain how to install and set these up on Linux Ubuntu 26.04. You’ll also need your own subdomain, such as sichtung.domain.de, as well as the ability to receive data over the internet via FTP or FTP/S, which usually requires your own IP address.
   - **If this isn’t a problem for you, please proceed to the next step of the installation and roll-out of the software**
 
@@ -45,9 +45,52 @@ https://github.com/user-attachments/assets/aa03d0c9-833c-42d2-a658-3a0d7d6f8485
 
   - To build the iOS app, you’ll need an Apple Developer Account, Xcode installed on your Mac, and the Xcode project containing the source code, which can be found here in the GitHub repository under ‘source’ 
   - The Wild Sichtung iOS app still requires the settings for your Immich URL and the corresponding API, which you can easily create within your Immich instance, as well as, optionally, your FTP service (for plotting detected wildlife).
-5. Build Linux .Net 10 Bot called JagdBildBot
-  - ...build Comming soon
-  - ...configure JagdBildBot
+5. Build Linux .Net 10 Bot called WildLifeBildBot
+  - To build the service, you need a working .NET SDK build environment; see also Installation. Copy the source code to your target server, navigate to the directory containing the WildLifeBildBot.proj file, and build the service using "dotnet build -c Release". You should receive a few warnings but no errors; the WildLifeBildBot service is now
+  - To configure the WildLifeBildBot please take a look inside appsettings.json and correct your settings
+    {
+  "Serilog": {
+    "Using": [ "Serilog.Sinks.Console", "Serilog.Sinks.File" ],
+
+    "MinimumLevel": "Information",
+    "WriteTo": [
+      { "Name": "Console" },
+      {
+        "Name": "File",
+        "Args": { "path": "WildLifeBildBotlog.txt" },
+        "rollingInterval": "Day"
+      }
+    ],
+    "Enrich": [ "FromLogContext", "WithMachineName", "WithThreadId" ],
+    "Properties": {
+      "Application": "{
+  "Serilog": {
+    "Using": [ "Serilog.Sinks.Console", "Serilog.Sinks.File" ],
+
+    "MinimumLevel": "Information",
+    "WriteTo": [
+      { "Name": "Console" },
+      {
+        "Name": "File",
+        "Args": { "path": "WildLifeBildBotlog.txt" },
+        "rollingInterval": "Day"
+      }
+    ],
+    "Enrich": [ "FromLogContext", "WithMachineName", "WithThreadId" ],
+    "Properties": {
+      "Application": "WildLifeBildBot"
+    }
+  },
+  "ApplicationSettings": {
+    "DBType": "SqliteDB", //MongoDB or SqliteDB
+    "FTPHomePath": "/tmp/WildLifeBildBot",
+    "BotHomePath": "/tmp/WildLifeBildBot",
+    "ImmichApiClientKey": "!!immichapikey!!",
+    "ImmichEndPoint": "http://192.168.1.100:2283/api",
+    "ImmichUserId": "!!ImmichUserId!!",
+    "MongoServer": "192.168.1.200" //optional if you want MongoDB
+  }
+}
 
 6. Joy and Fun with your Sighting of Wildlife
    
