@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="32700.99.1234" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="M4Y-Lb-cyx">
+    <device id="retina6_12" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="22684"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <scenes>
+        <!--Notification View Controller-->
+        <scene sceneID="cwh-vc-ff4">
+            <objects>
+                <viewController id="M4Y-Lb-cyx" userLabel="Notification View Controller" customClass="NotificationViewController" customModule="NotificationContentExtension" customModuleProvider="target" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" simulatedAppContext="notificationCenter" id="6De-6W-7l3">
+                        <rect key="frame" x="0.0" y="0.0" width="320" height="212"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <label opaque="NO" clipsSubviews="YES" userInteractionEnabled="NO" contentMode="top" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Hello World" lineBreakMode="tailTruncation" numberOfLines="0" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" preferredMaxLayoutWidth="280" translatesAutoresizingMaskIntoConstraints="NO" id="Y6X-OS-890">
+                                <rect key="frame" x="20" y="19.999999999999996" width="220" height="33.666666666666657"/>
+                                <fontDescription key="fontDescription" style="UICTFontTextStyleTitle1"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                            <imageView hidden="YES" clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="coin.png" translatesAutoresizingMaskIntoConstraints="NO" id="fDm-JS-gpM">
+                                <rect key="frame" x="240" y="0.0" width="80" height="80"/>
+                                <constraints>
+                                    <constraint firstAttribute="height" constant="80" id="MRY-sW-Lr3"/>
+                                    <constraint firstAttribute="width" constant="80" id="taq-Ok-8t2"/>
+                                </constraints>
+                            </imageView>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="system" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="ROT-nr-53i">
+                                <rect key="frame" x="20" y="61.666666666666671" width="128" height="130.33333333333331"/>
+                                <state key="normal" title="Button"/>
+                                <buttonConfiguration key="configuration" style="plain" title="Show amount"/>
+                                <connections>
+                                    <action selector="doCustomAction:" destination="M4Y-Lb-cyx" eventType="touchUpInside" id="lcP-Xa-2LF"/>
+                                </connections>
+                            </button>
+                            <label hidden="YES" opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Label" textAlignment="right" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="7gV-H6-umX">
+                                <rect key="frame" x="258" y="88" width="42" height="21"/>
+                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                <nil key="textColor"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                        </subviews>
+                        <viewLayoutGuide key="safeArea" id="k29-IW-w51"/>
+                        <color key="backgroundColor" red="0.45882353190000003" green="0.74901962280000001" blue="0.66666668650000005" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <constraints>
+                            <constraint firstAttribute="bottom" secondItem="ROT-nr-53i" secondAttribute="bottom" constant="20" id="2DV-0X-heN"/>
+                            <constraint firstItem="7gV-H6-umX" firstAttribute="top" secondItem="fDm-JS-gpM" secondAttribute="bottom" constant="8" symbolic="YES" id="EM4-p7-cgT"/>
+                            <constraint firstItem="ROT-nr-53i" firstAttribute="leading" secondItem="k29-IW-w51" secondAttribute="leading" constant="20" id="K4S-Io-yOw"/>
+                            <constraint firstItem="ROT-nr-53i" firstAttribute="top" secondItem="Y6X-OS-890" secondAttribute="bottom" constant="8" symbolic="YES" id="MzB-4x-lC7"/>
+                            <constraint firstItem="Y6X-OS-890" firstAttribute="leading" secondItem="k29-IW-w51" secondAttribute="leading" constant="20" id="RzJ-sL-FWM"/>
+                            <constraint firstItem="Y6X-OS-890" firstAttribute="top" secondItem="6De-6W-7l3" secondAttribute="top" constant="20" symbolic="YES" id="a2W-ba-OaV"/>
+                            <constraint firstItem="fDm-JS-gpM" firstAttribute="top" secondItem="6De-6W-7l3" secondAttribute="top" id="cwH-aN-2th"/>
+                            <constraint firstItem="k29-IW-w51" firstAttribute="trailing" secondItem="7gV-H6-umX" secondAttribute="trailing" constant="20" id="eSD-h0-uc6"/>
+                            <constraint firstItem="k29-IW-w51" firstAttribute="trailing" relation="greaterThanOrEqual" secondItem="ROT-nr-53i" secondAttribute="trailing" symbolic="YES" id="j3Y-nQ-Ndg"/>
+                            <constraint firstItem="fDm-JS-gpM" firstAttribute="trailing" secondItem="k29-IW-w51" secondAttribute="trailing" id="ocI-kY-ibW"/>
+                            <constraint firstItem="fDm-JS-gpM" firstAttribute="leading" secondItem="Y6X-OS-890" secondAttribute="trailing" id="yw7-yt-NLz"/>
+                        </constraints>
+                    </view>
+                    <extendedEdge key="edgesForExtendedLayout"/>
+                    <freeformSimulatedSizeMetrics key="simulatedDestinationMetrics"/>
+                    <size key="freeformSize" width="320" height="212"/>
+                    <connections>
+                        <outlet property="amount" destination="7gV-H6-umX" id="1KZ-Gz-Qwb"/>
+                        <outlet property="image" destination="fDm-JS-gpM" id="Vmr-Ki-0ku"/>
+                        <outlet property="label" destination="Y6X-OS-890" id="MtN-tU-qph"/>
+                    </connections>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="vXp-U4-Rya" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="-35.114503816793892" y="66.197183098591552"/>
+        </scene>
+    </scenes>
+    <resources>
+        <image name="coin.png" width="409.60000610351562" height="409.60000610351562"/>
+    </resources>
+</document>

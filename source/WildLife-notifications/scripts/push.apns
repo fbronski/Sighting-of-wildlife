@@ -1,0 +1,9 @@
+{
+	"Simulator Target Bundle": "me.dmi3j.push-notification-demo",
+	"aps": {
+		"alert": {
+			"title": "Lorem ipsum title",
+			"body": "Lorem ipsum body",
+		}
+	}
+}

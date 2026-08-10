@@ -1,0 +1,56 @@
+// Edited by FBronski
+// 20.07.2026
+
+import SwiftUI
+
+@available(iOS 16.0, visionOS 1.0, *)
+public struct DateRangePicker: View {
+    @available(iOS 16.0, visionOS 1.0, *)
+    static var defaultBounds: Range<Date> {
+        let calendar = Calendar.current
+        let start = calendar.date(byAdding: .month, value: -6, to: Date())!
+        let end = calendar.date(byAdding: .month, value: 6, to: Date())!
+        return start..<end
+    }
+    
+    @available(iOS 16.0, visionOS 1.0, *)
+    @Binding private var startDate: Date?
+    @available(iOS 16.0, visionOS 1.0, *)
+    @Binding private var endDate: Date?
+    let bounds: Range<Date>?
+    var calendar: Calendar = .current
+
+    @available(iOS 16.0, visionOS 1.0, *)
+    public init(
+        startDate: Binding<Date?>,
+        endDate: Binding<Date?>,
+        bounds: Range<Date>? = nil
+    ) {
+        self._startDate = startDate
+        self._endDate = endDate
+        self.bounds = bounds
+    }
+    
+    @available(iOS 16.0, visionOS 1.0, *)
+    private var datesBinding: Binding<Set<DateComponents>> {
+        Binding {
+            DateRangeHelper.getDatesInRange(startDate: startDate, endDate: endDate, calendar: calendar)
+        } set: { newValue in
+            DateRangeHelper.setDateRangeFromSelection(
+                newValue: newValue,
+                calendar: calendar,
+                startDate: &startDate,
+                endDate: &endDate
+            )
+        }
+    }
+    
+    @available(iOS 16.0, visionOS 1.0, *)
+    public var body: some View {
+        MultiDatePicker("", selection: datesBinding, in: bounds ?? Self.defaultBounds)
+            .environment(\.locale, Locale.current)
+            .environment(\.timeZone, .current)
+            .environment(\.calendar, calendar)
+    }
+}
+
