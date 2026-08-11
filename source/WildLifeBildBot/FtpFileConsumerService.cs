@@ -48,32 +48,39 @@ namespace WildLifeBildBot
         public string mImmichUserId = "";
         public string mBotHomePath = "";
 
-        public FTPFileConsumerService(ILogger<FTPFileConsumerService> logger)
+        public FTPFileConsumerService(ILogger<FTPFileConsumerService> logger,IConfiguration configuration)
         {
-            var config = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
-            mBotHomePath = config.GetValue<string>("ApplicationSettings:BotHomePath");
-            var apikey = config.GetValue<string>("ApplicationSettings:ImmichApiClientKey");
-            var endpoint = config.GetValue<string>("ApplicationSettings:ImmichEndPoint");
-            mServer = config.GetValue<string>("ApplicationSettings:MongoServer");
-            mImmichUserId = config.GetValue<string>("ApplicationSettings:ImmichUserId");
-
-            string modelDefaultPath = $"{mBotHomePath}/yolo26n.onnx";//"/home/mumpitz/WildLifeBildBot/yolo26n.onnx";  // Update with actual model path
-            //string modelWildLifePath = "/home/mumpitz/WildLifeBildBot/Wildlife_Rheinbrohl.onnx";
-            string modelWildLifeSegPath = $"{mBotHomePath}/Wildlife_Rheinbrohl_Seg.onnx";//"/home/mumpitz/WildLifeBildBot/Wildlife_Rheinbrohl_Seg.onnx";
-            // Load the YOLO predictor
-
-            _predictorWildLifeSeg = new YoloPredictor(modelWildLifeSegPath);
-           
-            _predictorDefault = new YoloPredictor(modelDefaultPath);
-
-            _client = ImmichApiClient.WithApiKey(apikey, endpoint);
-            _tagResponses =  DoGetTagsFromImmich(_client).Result;
-
-
             _logger = logger;
-           
-          
-           
+
+            mBotHomePath =
+                configuration["ApplicationSettings:BotHomePath"] ?? "";
+
+            var apikey =
+                configuration["ApplicationSettings:ImmichApiClientKey"] ?? "";
+
+            var endpoint =
+                configuration["ApplicationSettings:ImmichEndPoint"] ?? "";
+
+            mImmichUserId =
+                configuration["ApplicationSettings:ImmichUserId"] ?? "";
+
+            string modelDefaultPath =
+                $"{mBotHomePath}/yolo26n.onnx";
+
+            string modelWildLifeSegPath =
+                $"{mBotHomePath}/Wildlife_Rheinbrohl_Seg.onnx";
+
+            _predictorWildLifeSeg =
+                new YoloPredictor(modelWildLifeSegPath);
+
+            _predictorDefault =
+                new YoloPredictor(modelDefaultPath);
+
+            _client =
+                ImmichApiClient.WithApiKey(apikey, endpoint);
+
+            _tagResponses =
+                DoGetTagsFromImmich(_client).Result;
         }
 
         public async Task ConsumeFTPTextFileOnMongoDB(string name, string fullpath, int waitforfinishedsec = 0)
@@ -89,9 +96,10 @@ namespace WildLifeBildBot
 
 
                     MongoDataLayer<BildPost> cols = new MongoDataLayer<BildPost>(mServer, "UCSpyBildBot");
-                   
+                    //var query = Query<Camera>.EQ(u => u.CameraName, camid);
+                    //MongoCursor<Camera> camcursor = colcams.Collection.Find(query).SetLimit(1);
                     var cam = cols.GetCameraByName(camid);
-                   
+                     //feldkanzel@gmail.com
                    
                         
                     if (cam == null)
@@ -176,6 +184,8 @@ namespace WildLifeBildBot
                             _logger.LogInformation("Try to send Notify To Apple");
                             await SendAPNShNotifiction(cam.CameraRealName, $"Plotted Image {bp.BildId} {bp.UploadTime}", result.ToString(), asset);
 
+                            //await SendImmichNotifiction(client,"Neues Jagdbild gepostet",$"Camera:{cam.CameraRealName} hat das Foto:{name} gepostet",NotificationLevel.Success, immichUserId, NotificationType.Custom);
+
                             if (tempimagefile.Exists)
                                 tempimagefile.Delete();
 
@@ -221,7 +231,8 @@ namespace WildLifeBildBot
                 string camid = name.Substring(0, 4);
                 TagResponseDto tag = null;
                 MongoDataLayer<BildPost> cols = new MongoDataLayer<BildPost>(mServer, "UCSpyBildBot");
-               
+                //var query = Query<Camera>.EQ(u => u.CameraName, camid);
+                //MongoCursor<Camera> camcursor = colcams.Collection.Find(query).SetLimit(1);
                 var cam = cols.GetCameraByName( camid);
            
                 if(cam == null)
@@ -235,6 +246,10 @@ namespace WildLifeBildBot
                 FileInfo incomingftpfile = new FileInfo(fullpath);
 
            
+
+                /*var version = await client.Server.GetServerVersionAsync();
+                _logger.LogInformation($"Immich is available in Version {version} Send {name} to Immich");*/
+                //console.WriteLine(ConsoleColor.DarkCyan,);
 
                 if(waitforfinishedsec > 0)
                     await Task.Delay(TimeSpan.FromSeconds(waitforfinishedsec));
@@ -326,7 +341,7 @@ namespace WildLifeBildBot
 
                         //fs.Close();
 
-                        _logger.LogInformation($"Save {name} to MongoDB"); //Fbronski
+                        _logger.LogInformation($"Save {name} to MongoDB"); //Frank Hausmann");
                         string bildstamp = DateTime.Now.ToString("yyyyddMMHHmmss");
                         BildPost bp = new BildPost();
                         bp._id = ObjectId.GenerateNewId().ToString();
@@ -359,6 +374,8 @@ namespace WildLifeBildBot
                             _logger.LogInformation("Try to send Notify To Apple");
                             await SendAPNShNotifiction(cam.CameraRealName, $"Neue Sichtung {bp.BildId} {bp.UploadTime}",status,asset);
 
+                            //await SendImmichNotifiction(client,"Neues Jagdbild gepostet",$"Camera:{cam.CameraRealName} hat das Foto:{name} gepostet",NotificationLevel.Success, immichUserId, NotificationType.Custom);
+
                             if (incomingftpfile.Exists)
                                 incomingftpfile.Delete();
 
@@ -367,7 +384,7 @@ namespace WildLifeBildBot
                     }
                     catch (Exception ex)
                     {
-                       
+                        //SendSMTPMail(mBotEmail, auth.EmailAdress, "Exception: on->"+file, ex.Message.ToString(),null);
                         _logger.LogCritical("Add Text to Image Exception: on File->" + fullpath + ":" + ex.Message.ToString());
                   
                     }
@@ -397,7 +414,7 @@ namespace WildLifeBildBot
                 SqlLiteDataLayer<BildPostSL> cols = new SqlLiteDataLayer<BildPostSL>("UCSpyBildBot");
 
                 var cam = cols.GetCameraByName(camid);
-                
+                //feldkanzel@gmail.com
 
                 if (cam == null)
                 {
@@ -485,6 +502,8 @@ namespace WildLifeBildBot
                         _logger.LogInformation("Try to send Notify To Apple");
                         await SendAPNShNotifiction(cam.CameraRealName, $"Plotted Image {bp.BildId} {bp.UploadTime}", result.ToString(), asset);
 
+                        //await SendImmichNotifiction(client,"Neues Jagdbild gepostet",$"Camera:{cam.CameraRealName} hat das Foto:{name} gepostet",NotificationLevel.Success, immichUserId, NotificationType.Custom);
+
                         if (tempimagefile.Exists)
                             tempimagefile.Delete();
 
@@ -501,6 +520,8 @@ namespace WildLifeBildBot
                     _logger.LogInformation($"SyncCameras Command gefunden Text:{cmd.text}");
 
                     await cols.DeleteTableCameraAndCreateNew();
+
+                    //Text: [{ "creationDate":"2026-08-08’’","cameraRealName":"Minz 2","cameraType":"Willfine T5.8CG","id":1,"cameraName":"5GUB"},{ "creationDate":"2026-08-08’’","cameraRealName":"Lärchenkanzel","cameraType":"Willfine T5.8CG","id":2,"cameraName":"TI8P"},{ "creationDate":"2026-08-09’’","cameraRealName":"Josefheim","cameraType":"Willfine T5.8CG","id":3,"cameraName":"Z6JP"},{ "creationDate":"2026-08-09’’","cameraRealName":"Keilerkanzel","cameraType":"Willfine T5.8CG","id":4,"cameraName":"TI7H"}]
 
                     dynamic dynJson = JsonConvert.DeserializeObject(cmd.text);
                     foreach (var item in dynJson)
@@ -564,6 +585,11 @@ namespace WildLifeBildBot
                 string readabletimestamp = DateTime.Now.ToString("dd.MM.yyyy-HH:mm:ss"); // 201931030855
                 FileInfo incomingftpfile = new FileInfo(fullpath);
 
+
+
+                /*var version = await client.Server.GetServerVersionAsync();
+                _logger.LogInformation($"Immich is available in Version {version} Send {name} to Immich");*/
+                //console.WriteLine(ConsoleColor.DarkCyan,);
 
                 if (waitforfinishedsec > 0)
                     await Task.Delay(TimeSpan.FromSeconds(waitforfinishedsec));
@@ -757,6 +783,8 @@ namespace WildLifeBildBot
                             _logger.LogInformation("Try to send Notify To Apple");
                             await SendAPNShNotifiction(cam.CameraRealName, $"Neue Sichtung {bp.BildId} {bp.UploadTime}", status, asset);
 
+                            //await SendImmichNotifiction(client,"Neues Jagdbild gepostet",$"Camera:{cam.CameraRealName} hat das Foto:{name} gepostet",NotificationLevel.Success, immichUserId, NotificationType.Custom);
+
                             if (incomingftpfile.Exists)
                                 incomingftpfile.Delete();
 
@@ -765,7 +793,7 @@ namespace WildLifeBildBot
                     }
                     catch (Exception ex)
                     {
-                       
+                        //SendSMTPMail(mBotEmail, auth.EmailAdress, "Exception: on->"+file, ex.Message.ToString(),null);
                         _logger.LogCritical("Add Text to Image Exception: on File->" + fullpath + ":" + ex.Message.ToString());
 
                     }
@@ -850,7 +878,9 @@ namespace WildLifeBildBot
                     using SKBitmap newbmp = new(oriImage.Width, oriImage.Height+80);//The original has 640x480
                     using SKCanvas canvas = new(newbmp);
 
-                 
+                    
+                   
+                    //var oribmp = SKBitmap.FromImage(oriImage);
                     canvas.DrawImage(oriImage, new SKPoint(0, 0));
                     using SKPaint p1 = new() { Color = new SKColor(0x1e, 0x1e, 0x1e) };
                     canvas.DrawRect(0, oriImage.Height, oriImage.Width, 80, p1);
