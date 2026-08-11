@@ -9,7 +9,7 @@ namespace WildLifeBildBot
     {
         public string mFtphomepath = "C:\\Temp\\SpyBildBot"; //"/home/vftp/SpyBildBot";
         public string mBothomepath = "C:\\Temp\\SpyBildBot";
-        public string mDBType = "MongoDB";
+        public string mDBType = "SqliteDB";
         //public string mModelFile = "/home/unicomsupport/JagdBildBot/yolo11n.onnx";
         //public YoloPredictor? mPredictor = null;
         //public string mServer = "10.50.5.100:27017,10.50.5.101:27017";
