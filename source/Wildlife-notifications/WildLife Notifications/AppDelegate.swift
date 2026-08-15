@@ -11,6 +11,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     public let rootViewModel: RootViewModel = RootViewModel()
     let nc = UNUserNotificationCenter.current()
     var badgeCount = 0
+    var isSichtungViewVisible = false
     
     func application(
         _ application: UIApplication,
@@ -53,8 +54,11 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     ) async -> UIBackgroundFetchResult {
         print("\(#function)\n\(userInfo)")
        
-        badgeCount += 1
-        setBadgeNumber(badgeCount)
+        if isSichtungViewVisible {
+            setBadgeNumber(0)
+        } else {
+            setBadgeNumber(badgeCount + 1)
+        }
         rootViewModel.backgroundTask(with: userInfo)
         // perform any task in less than 30 sec
         //UIApplication.shared.applicationIconBadgeNumber += 1
@@ -76,15 +80,28 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         rootViewModel.displayConfigSettings()
     }
     
+    @MainActor
+    func setSichtungViewVisible(_ isVisible: Bool) {
+        isSichtungViewVisible = isVisible
+        if isVisible {
+            setBadgeNumber(0)
+        }
+    }
+
+    @MainActor
     func setBadgeNumber(_ number: Int) {
-            Task {
-                do {
-                    try await nc.setBadgeCount(badgeCount)
-                } catch {
-                    print("Error setting the badge count")
-                }
+        badgeCount = number
+        if #unavailable(iOS 17.0) {
+            UIApplication.shared.applicationIconBadgeNumber = number
+        }
+        Task {
+            do {
+                try await nc.setBadgeCount(number)
+            } catch {
+                print("Error setting the badge count: \(error)")
             }
         }
+    }
 }
 
 // MARK: - UNUserNotificationCenterDelegate
@@ -97,6 +114,11 @@ extension AppDelegate: @MainActor UNUserNotificationCenterDelegate {
         let userInfo = notification.request.content.userInfo
         print("\(#function)\n\(userInfo)")
         await rootViewModel.notificationReceived(with: userInfo)
+        if isSichtungViewVisible {
+            setBadgeNumber(0)
+            return [.sound, .banner, .list]
+        }
+
         /// return an array with element to display
         return [.sound, .banner, .badge, .list]
         /// return empty list if no UI needed for notification

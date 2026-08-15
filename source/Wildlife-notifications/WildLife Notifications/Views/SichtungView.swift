@@ -424,15 +424,24 @@ struct SichtungView: View {
         .onDisappear {
             // Stop timer when view disappears
             stopAutoRefresh()
+            setSichtungViewBadgeResetActive(false)
         }
     }
     
     private func clearAppIconBadge() {
-        Task {
-            do {
-                try await UNUserNotificationCenter.current().setBadgeCount(0)
-            } catch {
-                print("Error clearing the badge count: \(error)")
+        setSichtungViewBadgeResetActive(true)
+    }
+
+    private func setSichtungViewBadgeResetActive(_ isActive: Bool) {
+        if let appDelegate = UIApplication.shared.delegate as? AppDelegate {
+            appDelegate.setSichtungViewVisible(isActive)
+        } else if isActive {
+            Task {
+                do {
+                    try await UNUserNotificationCenter.current().setBadgeCount(0)
+                } catch {
+                    print("Error clearing the badge count: \(error)")
+                }
             }
         }
     }
