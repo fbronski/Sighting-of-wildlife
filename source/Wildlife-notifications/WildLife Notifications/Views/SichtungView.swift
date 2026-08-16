@@ -62,6 +62,7 @@ struct SichtungView: View {
     @State private var isFastScrollHandleActive = false
     @State private var showFastScrollHint = false
     @AppStorage("hasSeenSichtungFastScrollHint") private var hasSeenFastScrollHint = false
+    @AppStorage("languageIndex") private var languageIndex = 0
     
     private static let scrollDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -78,6 +79,10 @@ struct SichtungView: View {
     }()
     
     private let topListID = "SichtungListTop"
+
+    private func t(_ key: AppTextKey) -> String {
+        appText(key, languageIndex: languageIndex)
+    }
     
     var body: some View {
         NavigationStack {
@@ -101,7 +106,7 @@ struct SichtungView: View {
                                         
                                     }
                                 } label: {
-                                    Label("Update", systemImage: "arrow.trianglehead.clockwise.rotate.90")
+                                    Label(t(.update), systemImage: "arrow.trianglehead.clockwise.rotate.90")
                                 }
                                 .tint(.orange)
                                 
@@ -111,7 +116,7 @@ struct SichtungView: View {
    	        		 	     	   
   	  	     	     	  	    
                                 } label: {
-                                    Label("Delete", systemImage: "trash")
+                                    Label(t(.delete), systemImage: "trash")
                                 }
                                 .tint(.red)
                                 
@@ -132,14 +137,14 @@ struct SichtungView: View {
                                     Button {
                                         pinItem(item)
                                     } label: {
-                                        Label("UnPin", systemImage: "pin.slash")
+                                        Label(t(.unpin), systemImage: "pin.slash")
                                     }
                                     .tint(.red)
                                 } else {
                                     Button {
                                         pinItem(item)
                                     } label: {
-                                        Label("Pin", systemImage: "pin")
+                                        Label(t(.pin), systemImage: "pin")
                                     }
                                     .tint(.blue)
                                 }
@@ -149,7 +154,7 @@ struct SichtungView: View {
                                 Button {
                                     Task { await sendPlotCMDPerFTP(item) }
                                 } label: {
-                                    Label("Get Plotted", systemImage: "photo.artframe.circle")
+                                    Label(t(.getPlotted), systemImage: "photo.artframe.circle")
                                 }
                                 .tint(.cyan)
                                 if !item.imagebase64.isEmpty {
@@ -158,8 +163,8 @@ struct SichtungView: View {
                                     if(data != nil) {
                                         let uiImage = UIImage(data: data!)
                                         let shareImage = Image(uiImage: uiImage!)
-                                        ShareLink(item: shareImage, preview: SharePreview("Wildsichtung", image: shareImage)) {
-                                            Label("Share Photo", systemImage: "square.and.arrow.up")
+                                        ShareLink(item: shareImage, preview: SharePreview(t(.wildSightings), image: shareImage)) {
+                                            Label(t(.sharePhoto), systemImage: "square.and.arrow.up")
                                         }.tint(.purple)
                                     }
                                 }
@@ -200,22 +205,22 @@ struct SichtungView: View {
                             Button(role: .destructive) {
                                 deleteItem(item)
                             } label: {
-                                Label("Delete", systemImage: "trash")
+                                Label(t(.delete), systemImage: "trash")
                             }
                         }
                     }
                     .listRowSeparator(.hidden)
                     
                 }
-                .navigationTitle("Wildsichtungen")
+                .navigationTitle(t(.wildSightings))
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Menu("...") {
-                            Button("Zum Anfang", systemImage: "arrow.up.to.line") {
+                            Button(t(.topOfList), systemImage: "arrow.up.to.line") {
                                 scrollToTop(using: scrollProxy)
                             }
                             
-                            Button("Refresh View", systemImage: "arrow.trianglehead.clockwise.rotate.90", action: { print("Refreh selected")
+                            Button(t(.refreshView), systemImage: "arrow.trianglehead.clockwise.rotate.90", action: { print("Refreh selected")
                                 
                                 Task {
                                     isRefreshing = true
@@ -224,7 +229,7 @@ struct SichtungView: View {
                                 }
                                 
                             })
-                            Button("Update All", systemImage: "arrow.trianglehead.2.clockwise.rotate.90", action: { print("Update All without Image")
+                            Button(t(.updateAll), systemImage: "arrow.trianglehead.2.clockwise.rotate.90", action: { print("Update All without Image")
                                 
                                 Task {
                                     isRefreshing = true
@@ -234,7 +239,7 @@ struct SichtungView: View {
                                 }
                                 
                             })
-                            Button("Unpinned löschen",systemImage: "arrow.up.trash", action: { print("Unpinned löschen")
+                            Button(t(.unpinnedDelete),systemImage: "arrow.up.trash", action: { print("Unpinned löschen")
    	         	 	     
       	    	        
                                 DatabaseManager.shared.deleteAllUnPinned()
@@ -247,17 +252,17 @@ struct SichtungView: View {
                                 
                             })
                            
-                            Button("Lösche bis \(viewModel.draftDuration.timeString)",systemImage: "timeline.selection", action: { print("Immich löschen")
+                            Button("\(t(.delete)) \(viewModel.draftDuration.timeString)",systemImage: "timeline.selection", action: { print("Immich löschen")
    	         	 	     
   	     	 	     
                                 showTimeSheet.toggle()
    	   	  	    	 
       	    	   	     
                                })
-                            Button("Lösche Datum...", systemImage: "calendar.badge.minus") {
+                            Button(t(.dateDelete), systemImage: "calendar.badge.minus") {
                                 showDateDeleteSheet = true
                             }
-                            Button("DB Löschen",systemImage: "document.on.trash", action: { print("Datenbank löschen")
+                            Button(t(.databaseDelete),systemImage: "document.on.trash", action: { print("Datenbank löschen")
                                 
                                 if(DatabaseManager.shared.IsAnyNotifyPinned()) {
                                     self.activeAlert = .first
@@ -353,7 +358,7 @@ struct SichtungView: View {
                         .buttonStyle(.plain)
                         .padding(.trailing, 18)
                         .padding(.bottom, 28)
-                        .accessibilityLabel("Zum Anfang der Liste")
+                        .accessibilityLabel(t(.topOfList))
                         .transition(.opacity.combined(with: .scale(scale: 0.9)))
                     }
                 }
@@ -413,33 +418,33 @@ struct SichtungView: View {
                 .alert(isPresented: $showAlert, content: {
                     switch activeAlert {
                     case .first:
-                        Alert(title: Text("Achtung Pinned Notify"),
-                              message: Text("Es gibt Nachrichten die angehefted sind. Wenn sie löschen gehen diese verloren. Möchten Sie die Datenbank wirklich löschen?"),
-                              primaryButton: Alert.Button.default(Text("Aktzeptiere"), action: {
+                        Alert(title: Text(t(.alertPinnedTitle)),
+                              message: Text(t(.pinnedWarningMessage)),
+                              primaryButton: Alert.Button.default(Text(t(.accept)), action: {
                             DatabaseManager.shared.deleteAndCreateNew()
                             print("Datenbank trotzdem löschen")
                         }),
-                              secondaryButton: .destructive(Text("Abbruch"))
+                              secondaryButton: .destructive(Text(t(.cancel)))
                         )
                     case .second:
-                        Alert(title: Text("Achtung Löschen von Immich Bildern"),
+                        Alert(title: Text(t(.deleteImmichTitle)),
                               message: Text(deleteImagesConfirmationMessage),
-                              primaryButton: Alert.Button.destructive(Text("In Papierkorb"), action: {
+                              primaryButton: Alert.Button.destructive(Text(t(.deleteToTrash)), action: {
                             Task {
                                 await deleteImagesInSelectedTimeRange()
                             }
                         }),
-                              secondaryButton: .cancel(Text("Abbruch"))
+                              secondaryButton: .cancel(Text(t(.cancel)))
                         )
                     case .third:
-                        Alert(title: Text("Achtung Löschen von Immich Bildern"),
+                        Alert(title: Text(t(.deleteImmichTitle)),
                               message: Text(dateDeletionConfirmationMessage),
-                              primaryButton: Alert.Button.destructive(Text("In Papierkorb"), action: {
+                              primaryButton: Alert.Button.destructive(Text(t(.deleteToTrash)), action: {
                             Task {
                                 await deleteImagesInPendingDateRange()
                             }
                         }),
-                              secondaryButton: .cancel(Text("Abbruch"))
+                              secondaryButton: .cancel(Text(t(.cancel)))
                         )
                     }
                 })
@@ -1007,6 +1012,7 @@ private struct SichtungScrollPositionBadge: View {
 }
 
 private struct ScrollProgressBar: View {
+    @AppStorage("languageIndex") private var languageIndex = 0
     let progress: CGFloat
 
     var body: some View {
@@ -1029,11 +1035,12 @@ private struct ScrollProgressBar: View {
             .frame(maxHeight: .infinity)
         }
         .frame(width: 160, height: 12)
-        .accessibilityLabel("Listenposition")
+        .accessibilityLabel(appText(.scrollPosition, languageIndex: languageIndex))
     }
 }
 
 private struct FastScrollHandle: View {
+    @AppStorage("languageIndex") private var languageIndex = 0
     let isActive: Bool
 
     var body: some View {
@@ -1045,14 +1052,16 @@ private struct FastScrollHandle: View {
                 .padding(.trailing, 8)
         }
         .padding(.vertical, 56)
-        .accessibilityLabel("Schnell scrollen")
+        .accessibilityLabel(appText(.scrollHint, languageIndex: languageIndex))
     }
 }
 
 private struct FastScrollHintView: View {
+    @AppStorage("languageIndex") private var languageIndex = 0
+
     var body: some View {
         HStack(spacing: 8) {
-            Text("Am rechten Rand schnell scrollen")
+            Text(appText(.scrollHint, languageIndex: languageIndex))
                 .font(.caption.weight(.semibold))
                 .fixedSize(horizontal: false, vertical: true)
             Image(systemName: "arrow.right")
@@ -1063,11 +1072,12 @@ private struct FastScrollHintView: View {
         .padding(.vertical, 8)
         .background(.black.opacity(0.78), in: Capsule())
         .shadow(color: .black.opacity(0.24), radius: 8, x: 0, y: 3)
-        .accessibilityLabel("Hinweis: Am rechten Rand schnell scrollen")
+        .accessibilityLabel(appText(.scrollHintAccessibility, languageIndex: languageIndex))
     }
 }
 
 private struct DateDeletionSelectionSheet: View {
+    @AppStorage("languageIndex") private var languageIndex = 0
     @Binding var mode: DateDeletionMode
     @Binding var referenceDate: Date
     @Binding var rangeStartDate: Date?
@@ -1156,15 +1166,15 @@ private struct DateDeletionSelectionSheet: View {
                     }
                 }
             }
-            .navigationTitle("Bilder löschen")
+            .navigationTitle(appText(.deleteDateTitle, languageIndex: languageIndex))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Abbruch") {
+                    Button(appText(.cancel, languageIndex: languageIndex)) {
                         onCancel()
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Weiter") {
+                    Button(appText(.continueAction, languageIndex: languageIndex)) {
                         onContinue()
                     }
                     .disabled(mode == .range && rangeStartDate == nil && rangeEndDate == nil)

@@ -15,6 +15,7 @@ struct DetailCameraView: View {
     @State private var showSaveError = false
     @State private var showDeleteConfirmation = false
     @State private var isLoadingImage = false
+    @AppStorage("languageIndex") private var languageIndex = 0
    
     let fileManager = FileManager.default
     
@@ -30,12 +31,12 @@ struct DetailCameraView: View {
                     HStack {
                         VStack(alignment: .leading) {
                             
-                            TextField("Camera Ort", text: $camera.CameraRealName)
+                            TextField(appText(.cameraLocation, languageIndex: languageIndex), text: $camera.CameraRealName)
                                 .font(.title)
                                 .textFieldStyle(.roundedBorder)
                                 .padding()
                             
-                            TextField("Camera Name", text: $camera.CameraName)
+                            TextField(appText(.cameraName, languageIndex: languageIndex), text: $camera.CameraName)
                                 .textFieldStyle(.roundedBorder)
                                 .padding(.horizontal)
                                 .onChange(of: camera.CameraName) { _, newValue in
@@ -44,7 +45,7 @@ struct DetailCameraView: View {
                                     }
                                 }
                             
-                            TextField("Camera Typ", text: $camera.CameraType)
+                            TextField(appText(.cameraType, languageIndex: languageIndex), text: $camera.CameraType)
                                 .textFieldStyle(.roundedBorder)
                                 .padding(.horizontal)
                                 .padding(.top, 8)
@@ -56,7 +57,7 @@ struct DetailCameraView: View {
                             Button(role: .destructive) {
                                 showDeleteConfirmation = true
                             } label: {
-                                Label("Kamera löschen", systemImage: "trash")
+                                Label(appText(.cameraDelete, languageIndex: languageIndex), systemImage: "trash")
                                     .frame(maxWidth: .infinity)
                             }
                             .buttonStyle(.borderedProminent)
@@ -83,20 +84,20 @@ struct DetailCameraView: View {
                 }
                 
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Speichern") {
+                    Button(appText(.save, languageIndex: languageIndex)) {
                         saveCamera()
                     }
                 }
                 
             }
-            .alert("Kamera konnte nicht gespeichert werden", isPresented: $showSaveError) {
+            .alert(appText(.cameraSaveFailed, languageIndex: languageIndex), isPresented: $showSaveError) {
                 Button("OK", role: .cancel) {}
             }
-            .confirmationDialog("Kamera löschen?", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
-                Button("Kamera löschen", role: .destructive) {
+            .confirmationDialog(appText(.cameraDeleteQuestion, languageIndex: languageIndex), isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+                Button(appText(.cameraDelete, languageIndex: languageIndex), role: .destructive) {
                     deleteCamera()
                 }
-                Button("Abbrechen", role: .cancel) {}
+                Button(appText(.cancel, languageIndex: languageIndex), role: .cancel) {}
             }
             .onChange(of: selectedPhoto) { _, newValue in
                 guard let newValue else { return }
@@ -118,7 +119,7 @@ struct DetailCameraView: View {
     
     private var cameraImageSection: some View {
         let selectedImage = cameraImage
-        let pickerTitle = selectedImage == nil ? "Foto auswählen" : "Foto ändern"
+        let pickerTitle = selectedImage == nil ? appText(.selectPhoto, languageIndex: languageIndex) : appText(.changePhoto, languageIndex: languageIndex)
         
         return VStack(spacing: 12) {
             if let uiImage = selectedImage {
@@ -134,7 +135,7 @@ struct DetailCameraView: View {
                     Image(systemName: "photo")
                         .font(.largeTitle)
                         .foregroundColor(.secondary)
-                    Text("Kein Foto vorhanden")
+                    Text(appText(.noPhoto, languageIndex: languageIndex))
                         .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity, minHeight: 220)
@@ -149,7 +150,7 @@ struct DetailCameraView: View {
             .disabled(isLoadingImage)
             
             if isLoadingImage {
-                ProgressView("Foto wird geladen")
+                ProgressView(appText(.imageLoading, languageIndex: languageIndex))
             }
         }
         .padding()

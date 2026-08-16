@@ -9,7 +9,7 @@ struct WildLife_Notifications_App: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView(viewModel: delegate.rootViewModel)
+            SplashRootView(viewModel: delegate.rootViewModel)
         }
     }
 }

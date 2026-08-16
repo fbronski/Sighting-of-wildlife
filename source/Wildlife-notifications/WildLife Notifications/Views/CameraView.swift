@@ -6,6 +6,7 @@ import SwiftUI
 struct CameraView: View {
     
     @State var camera: WildsichtungCamera
+    @AppStorage("languageIndex") private var languageIndex = 0
    
     @State private var imageData: Data? = nil
     @State private var isLoading = false
@@ -27,13 +28,13 @@ struct CameraView: View {
                
             } else if isLoading {
                 // Show loading indicator when downloading image
-                ProgressView("Loading image...")
+                ProgressView(appText(.imageLoading, languageIndex: languageIndex))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .foregroundColor(.secondary)
             } else {
                 // Show no image available or base64 decoding failure
                 if camera.standOrt64.isEmpty {
-                    Text("No image available")
+                    Text(appText(.noImageAvailable, languageIndex: languageIndex))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .foregroundColor(.secondary)
                 } else {
@@ -44,7 +45,7 @@ struct CameraView: View {
                             .aspectRatio(contentMode: .fit)
                             .frame(minHeight: 200)
                     } else {
-                        Text("Image loading failed")
+                        Text(appText(.imageLoadingFailed, languageIndex: languageIndex))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .foregroundColor(.secondary)
                     }

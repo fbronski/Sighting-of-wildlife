@@ -6,45 +6,50 @@ import SwiftUI
 struct NotificationsSetupView: View {
     @State var viewModel: RootViewModel
     @State private var showIncoming = true
+    @AppStorage("languageIndex") private var languageIndex = 0
+
+    private func t(_ key: AppTextKey) -> String {
+        appText(key, languageIndex: languageIndex)
+    }
+
     var body: some View {
         VStack {
             VStack {
                 HStack {
-                    Text("Wildsuchtung notifications status:")
+                    Text(t(.notificationStatusLine))
                     Spacer()
                     VStack {
                         switch(viewModel.status) {
-                            case .notDetermined:
-                            Text("nicht entschieden")
+                        case .notDetermined:
+                            Text(t(.notDetermined))
                         case .denied:
-                            Text("Verweigert")
+                            Text(t(.denied))
                         case .authorized:
-                            Text("Autorisiert").bold(true)
+                            Text(t(.authorized)).bold(true)
                         case .provisional:
-                            Text("Provisional")
+                            Text(t(.provisional))
                         case .ephemeral:
-                            Text("Ephemeral")
+                            Text(t(.ephemeral))
                         @unknown default:
-                            Text("Unbekannt")
+                            Text(t(.unknown))
                         }
-                        
                     }
                 }
                 .padding()
 
-                Button("Check status", systemImage: "arrow.clockwise") {
+                Button(t(.checkNotificationStatus), systemImage: "arrow.clockwise") {
                     Task { await viewModel.checkStatus() }
                 }
                 .padding()
 
                 Picker("", selection: $viewModel.requestType) {
-                    Text("Explicit").tag(0)
-                    Text("Provisional").tag(1)
+                    Text(t(.explicit)).tag(0)
+                    Text(t(.provisional)).tag(1)
                 }
                 .pickerStyle(.segmented)
                 .padding()
 
-                Button("Request permission", systemImage: "gear.badge.questionmark") {
+                Button(t(.requestPermission), systemImage: "gear.badge.questionmark") {
                     Task { await viewModel.requestPermission() }
                 }
                 .padding()
@@ -53,14 +58,14 @@ struct NotificationsSetupView: View {
             Spacer()
 
             VStack {
-                Button("Test local push", systemImage: "paperplane") {
+                Button(t(.testLocalPush), systemImage: "paperplane") {
                     //Task { await viewModel.sendLocalPush() }
                 }
                 .padding()
             }
 
             VStack {
-                Button("Perform network request", systemImage: "network") {
+                Button(t(.performNetworkRequest), systemImage: "network") {
                     Task { await viewModel.performDummyNetworkRequest() }
                 }
                 .padding()
@@ -69,50 +74,36 @@ struct NotificationsSetupView: View {
 
             VStack {
                 HStack {
-                    Text("Title:").bold()
+                    Text(t(.title)).bold()
                     Text(viewModel.notificationTitle)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 HStack {
-                    Text("Subtitle:").bold()
+                    Text(t(.subtitle)).bold()
                     Text(viewModel.notificationSubtitle)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 HStack {
-                    Text("Body:").bold()
+                    Text(t(.body)).bold()
                     Text(viewModel.notificationBody)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 HStack {
-                    Text("ImmichId:").bold()
+                    Text(t(.immichId)).bold()
                     Text(viewModel.notificationImmichId)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 HStack {
-                    Text("Custom actions:").bold()
+                    Text(t(.customActions)).bold()
                     Text(viewModel.customAction)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding()
-
-            //Spacer()
-
-            /*VStack {
-                Button("Subscribe to topic", systemImage: "bell") {
-                    Task { await viewModel.subscribeToTopic() }
-                }
-                .padding()
-
-                Button("Unsubscribe from topic", systemImage: "bell.slash") {
-                    Task { await viewModel.unsubscribeFromTopic() }
-                }
-                .padding()
-            }*/
         }
         .sheet(isPresented: $viewModel.isPresentingSettings) {
             Form {
-                Toggle("Enable incoming payments notifications", isOn: $showIncoming)
+                Toggle(t(.incomingPaymentsNotifications), isOn: $showIncoming)
             }
             .presentationDetents([.medium])
         }

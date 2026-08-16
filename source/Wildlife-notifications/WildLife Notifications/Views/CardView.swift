@@ -24,6 +24,7 @@ struct CheckToggleStyle: ToggleStyle {
 struct CardView: View {
     
     @State var wildsichtung: Wildsichtung
+    @AppStorage("languageIndex") private var languageIndex = 0
     @State public var isPinned: Bool
     @State private var imageData: Data? = nil
     @State private var isLoading = false
@@ -92,13 +93,13 @@ struct CardView: View {
                     .frame(maxWidth: .infinity)
                     .frame(minHeight: 200)
             } else if isLoading {
-                ProgressView("Loading image...")
+                ProgressView(appText(.imageLoading, languageIndex: languageIndex))
                     .frame(maxWidth: .infinity)
                     .frame(height: 220)
                     .foregroundColor(.secondary)
                     .background(Color(.secondarySystemGroupedBackground))
             } else {
-                Text(wildsichtung.imagebase64.isEmpty ? "No image available" : "Image loading failed")
+                Text(wildsichtung.imagebase64.isEmpty ? appText(.noImageAvailable, languageIndex: languageIndex) : appText(.imageLoadingFailed, languageIndex: languageIndex))
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity)

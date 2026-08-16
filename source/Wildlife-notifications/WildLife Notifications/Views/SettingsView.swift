@@ -4,7 +4,6 @@
 import SwiftUI
 
 class PreferencesViewModel: ObservableObject {
-    @AppStorage("languageIndex") var languageIndex = 0
     @AppStorage("ftpIP") var ftpIP = ""
     @AppStorage("ftpUser") var ftpUser = ""
     @AppStorage("ftpPassword") var ftpPassword = ""
@@ -61,26 +60,31 @@ private struct CameraFTPPayload: Codable {
 struct SettingsView: View {
     @StateObject var model = PreferencesViewModel()
     @StateObject var cameraModel = WildsichtungCamera(id: 0, CameraRealName: "", CameraName: "", CameraType: "", standOrt64: "", creationDate: Date())
+    @AppStorage("languageIndex") private var languageIndex = 0
     
     @Binding var viewModel: RootViewModel
     @State private var cameras: [WildsichtungCamera] = []
     @State private var isRefreshing = false
     @State private var showFTPUploadAlert = false
     @State private var ftpUploadMessage = ""
+
+    private func t(_ key: AppTextKey) -> String {
+        appText(key, languageIndex: languageIndex)
+    }
     
     var body: some View {
         /// Ff you want to show the search bar, just change `isSearchable` to true.
 
         SettingStack(isSearchable: false) {
-            SettingPage(title: "Einstellungen") {
+            SettingPage(title: t(.settings)) {
                 SettingGroup {
-                    SettingPage(title: "Allgemein") {
+                    SettingPage(title: t(.general)) {
                         SettingCustomView(id: "Header View") {
                             VStack(spacing: 10) {
                                 Image(systemName: "gearshape.fill")
                                     .font(.largeTitle)
 
-                                Text("Wildsichtungen Setting!")
+                                Text(t(.wildlifeSettings))
                                     .font(.headline)
                             }
                             .multilineTextAlignment(.center)
@@ -93,7 +97,7 @@ struct SettingsView: View {
                         }
 
                         SettingGroup {
-                            SettingButton(title: "Siehe Wildsichtung auf GitHub") {
+                            SettingButton(title: t(.githubLink)) {
                                 if let url = URL(string: "https://github.com/fbronski/Sighting-of-wildlife") {
                                     #if os(iOS)
                                         UIApplication.shared.open(url)
@@ -116,36 +120,36 @@ struct SettingsView: View {
 
                         SettingGroup {
                             SettingPicker(
-                                title: "Language",
+                                title: t(.language),
                                 choices: [
-                                    "English",
-                                    "Spanish",
-                                    "French",
-                                    "Italian",
-                                    "Chinese",
-                                    "Japanese",
-                                    "Korean",
-                                    "German",
+                                    AppLanguage.english.name,
+                                    AppLanguage.spanish.name,
+                                    AppLanguage.french.name,
+                                    AppLanguage.italian.name,
+                                    AppLanguage.chinese.name,
+                                    AppLanguage.japanese.name,
+                                    AppLanguage.korean.name,
+                                    AppLanguage.german.name,
                                 ],
-                                selectedIndex: $model.languageIndex
+                                selectedIndex: $languageIndex
                             )
                         }
 
-                        SettingGroup(header: "FTP Settings", footer: "Optionale Anbindung an einen FTP Server: \(model.ftpIP)") {
+                        SettingGroup(header: t(.ftpSettings), footer: String(format: t(.ftpSettingsFooter), model.ftpIP)) {
                             /*SettingSlider(value: $model.brightness, range: 0 ... 100, minimumImage: Image(systemName: "sun.min"), maximumImage: Image(systemName: "sun.max"))*/
-                            SettingTextField(placeholder: "Host / IP", secure: false, text: $model.ftpIP)
-                            SettingTextField(placeholder: "Ftp Benutzer",secure: false, text: $model.ftpUser)
-                            SettingTextField(placeholder: "Ftp Password", secure: true,text: $model.ftpPassword)
-                            SettingTextField(placeholder: "FTP Port", secure: false,text: $model.ftpPort)
+                            SettingTextField(placeholder: t(.hostIP), secure: false, text: $model.ftpIP)
+                            SettingTextField(placeholder: t(.ftpUser),secure: false, text: $model.ftpUser)
+                            SettingTextField(placeholder: t(.ftpPassword), secure: true,text: $model.ftpPassword)
+                            SettingTextField(placeholder: t(.ftpPort), secure: false,text: $model.ftpPort)
                             SettingPicker(
-                                title: "Protokoll",
+                                title: t(.ftpProtocol),
                                 choices: ["FTP", "FTPS explizit"],
                                 selectedIndex: $model.ftpSecurityIndex
                             )
                             .pickerDisplayMode(.menu)
                         }
 
-                        SettingGroup(header: "Immich Url") {
+                        SettingGroup(header: t(.immichUrl)) {
                             //SettingToggle(title: "Turbo Mode", isOn: $model.turboMode)
                             SettingTextField(placeholder: "https://www.example.com",secure: false, text: $model.immichurltext)
                             
@@ -158,9 +162,9 @@ struct SettingsView: View {
                             }*/
                         }
                         
-                        SettingGroup(header: "Immich API Key") {
+                        SettingGroup(header: t(.immichApiKey)) {
                             //SettingToggle(title: "Turbo Mode", isOn: $model.turboMode)
-                            SettingTextField(placeholder: "API Key",secure: true, text: $model.immichapikey)
+                            SettingTextField(placeholder: t(.apiKey),secure: true, text: $model.immichapikey)
                             
                             
                         }
@@ -170,13 +174,13 @@ struct SettingsView: View {
                 }
                 
                 SettingGroup {
-                    SettingPage(title: "Kameras") {
+                    SettingPage(title: t(.cameras)) {
                         SettingGroup {
-                            SettingButton(title: "Neue Kamera hinzufügen") {
+                            SettingButton(title: t(.addNewCamera)) {
                                 addNewCamera()
                             }
                             
-                            SettingButton(title: "Kameras an den JagdBildBot senden") {
+                            SettingButton(title: t(.camerasToBot)) {
                                 Task {
                                     await sendCamerasPerFTP()
                                 }
@@ -190,9 +194,9 @@ struct SettingsView: View {
                 }
                 
                 SettingGroup {
-                    SettingPage(title: "Notifications") {
-                        SettingGroup(footer: model.enableNotifications ? nil : "Turn on to see more settings.") {
-                            SettingToggle(title: "Enable Notifications", isOn: $model.enableNotifications)
+                    SettingPage(title: t(.notifications)) {
+                        SettingGroup(footer: model.enableNotifications ? nil : t(.notificationFooterDisabled)) {
+                            SettingToggle(title: t(.enableNotifications), isOn: $model.enableNotifications)
                         }
                         
                         if model.enableNotifications {
@@ -200,19 +204,19 @@ struct SettingsView: View {
                             
                             SettingGroup {
                                 SettingPicker(
-                                    title: "Notification Status",
+                                    title: t(.notificationStatus),
                                     choices: [
-                                        "nicht Entschieden",
-                                        "Verweigert",
-                                        "Autorisiert",
-                                        "Provisional",
-                                        "Ephemeral"
+                                        t(.notDetermined),
+                                        t(.denied),
+                                        t(.authorized),
+                                        t(.provisional),
+                                        t(.ephemeral)
                                     ],
                                     selectedIndex: $model.notificationIndex
                                 )
                                 .pickerDisplayMode(.menu)
                                 
-                                SettingButton(title: "Check Notificationstatus") {
+                                SettingButton(title: t(.checkNotificationStatus)) {
                                     Task { await viewModel.checkStatus() }
                                 }
                             }
@@ -224,12 +228,12 @@ struct SettingsView: View {
                 }
                    
                 SettingGroup {
-                    SettingPage(title: "Über Wildsichtung", selectedChoice: "Wildsichtung") {
+                    SettingPage(title: t(.whatIsWildsichtung), selectedChoice: t(.wildSightings)) {
                         SettingGroup {
-                            SettingText(title: "Was ist Wildsichtung", bold: true)
-                            SettingText(title: "Wildsichtung ist ein App, welche dir hilft, das Wildmanagement zu verbessern. Wildtiere zu Monitoren und zu beobachten. 🐗 🦌 🦊 🦡")
-                            SettingText(title: "Was benötige ich für Wildsichtung", bold: true)
-                            SettingButton(title: "Siehe Wildsichtung auf GitHub") {
+                            SettingText(title: t(.whatIsWildsichtung), bold: true)
+                            SettingText(title: t(.appDescription))
+                            SettingText(title: t(.whatDoINeed), bold: true)
+                            SettingButton(title: t(.githubLink)) {
                                 if let url = URL(string: "https://github.com/fbronski/Sighting-of-wildlife") {
                                     #if os(iOS)
                                     UIApplication.shared.open(url)
@@ -268,7 +272,7 @@ struct SettingsView: View {
                 
 
                 SettingCustomView(id: "Custom Footer", titleForSearch: "Wildsichtungen !") {
-                    Text("Wildsichtungen")
+                    Text(t(.wildSightings))
                         .foregroundColor(.white)
                         .font(.headline)
                         .shadow(color: .black.opacity(0.5), radius: 3, x: 0, y: 1)
@@ -299,7 +303,7 @@ struct SettingsView: View {
         .onAppear {
             refreshCameras()
         }
-        .alert("FTP Upload", isPresented: $showFTPUploadAlert) {
+        .alert(t(.ftpUpload), isPresented: $showFTPUploadAlert) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(ftpUploadMessage)
@@ -310,7 +314,7 @@ struct SettingsView: View {
     var kameras: some View {
         VStack(spacing: 0) {
             if cameras.isEmpty {
-                Text("Keine Kameras vorhanden")
+                Text(t(.noCameras))
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
