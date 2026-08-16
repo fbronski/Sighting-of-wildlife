@@ -25,15 +25,17 @@ class WildsichtungCamera: ObservableObject {
     var CameraRealName: String
     var CameraName: String
     var CameraType: String
+    var PhoneNumber: String
     var creationDate: Date
     var standOrt64: String
     
     
-    init(id: Int64,CameraRealName: String,CameraName: String, CameraType: String, standOrt64: String, creationDate: Date) {
+    init(id: Int64,CameraRealName: String,CameraName: String, CameraType: String, PhoneNumber: String = "", standOrt64: String, creationDate: Date) {
         self.id = id
         self.CameraRealName = CameraRealName
         self.CameraName = CameraName
         self.CameraType = CameraType
+        self.PhoneNumber = PhoneNumber
         self.standOrt64 = standOrt64
         self.creationDate = creationDate
         
@@ -45,6 +47,7 @@ private struct CameraFTPPayload: Codable {
     let cameraRealName: String
     let cameraName: String
     let cameraType: String
+    let phoneNumber: String
     let creationDate: String
     
     init(camera: WildsichtungCamera) {
@@ -52,6 +55,7 @@ private struct CameraFTPPayload: Codable {
         self.cameraRealName = camera.CameraRealName
         self.cameraName = camera.CameraName
         self.cameraType = camera.CameraType
+        self.phoneNumber = camera.PhoneNumber
         self.creationDate = camera.creationDate.formattedString(dateFormat: "yyyy-MM-dd’T’HH:mm:ss")
     }
 }
@@ -356,7 +360,7 @@ struct SettingsView: View {
                     .foregroundColor(.primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 
-                Text([camera.CameraName, camera.CameraType].filter { !$0.isEmpty }.joined(separator: " · "))
+                Text([camera.CameraName, camera.CameraType, camera.PhoneNumber].filter { !$0.isEmpty }.joined(separator: " · "))
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)

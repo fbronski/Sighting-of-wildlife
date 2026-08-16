@@ -27,6 +27,7 @@ class DatabaseManager {
     private let CameraRealName = Expression<String>("CameraRealName")
     private let CameraName = Expression<String>("CameraName")
     private let CameraType = Expression<String>("CameraType")
+    private let PhoneNumber = Expression<String>("PhoneNumber")
     private let standOrt64 = Expression<String>("standOrt64")
 
     let appGroupId = "group.de.unicomedv.WildSichtung"
@@ -68,14 +69,26 @@ class DatabaseManager {
                 table.column(CameraRealName)
                 table.column(CameraName)
                 table.column(CameraType)
+                table.column(PhoneNumber, defaultValue: "")
                 table.column(standOrt64)
                 table.column(creationDate)
             })
+            migrateCameraTable()
             
             try db?.run(sichtung.createIndex(immichid, unique: true))
             try db?.run(sichtung.createIndex(cameraid, unique: false))
         } catch {
             print("Unable to create table. Error: \(error)")
+        }
+    }
+    
+    private func migrateCameraTable() {
+        do {
+            try db?.run("ALTER TABLE WildsichtungCamera ADD COLUMN PhoneNumber TEXT NOT NULL DEFAULT ''")
+        } catch {
+            if !error.localizedDescription.lowercased().contains("duplicate column") {
+                print("Unable to migrate camera table. Error: \(error)")
+            }
         }
     }
     
@@ -96,9 +109,9 @@ class DatabaseManager {
         }
     }
     
-    func addCamera(CameraName: String, CameraRealName: String, CameraType: String, standOrt64: String, creationDate: Date)  -> Int64? {
+    func addCamera(CameraName: String, CameraRealName: String, CameraType: String, PhoneNumber: String = "", standOrt64: String, creationDate: Date)  -> Int64? {
         do {
-            let insert = camera.insert(self.CameraName <- CameraName, self.CameraRealName <- CameraRealName, self.CameraType <- CameraType, self.standOrt64 <- standOrt64, self.creationDate <- creationDate)
+            let insert = camera.insert(self.CameraName <- CameraName, self.CameraRealName <- CameraRealName, self.CameraType <- CameraType, self.PhoneNumber <- PhoneNumber, self.standOrt64 <- standOrt64, self.creationDate <- creationDate)
             let id = try db?.run(insert)
             return id
         } catch {
@@ -118,9 +131,9 @@ class DatabaseManager {
         }
     }
     
-    func updateCamera(id: Int64, CameraName: String, CameraRealName: String, CameraType: String, standOrt64: String) -> Bool {
+    func updateCamera(id: Int64, CameraName: String, CameraRealName: String, CameraType: String, PhoneNumber: String, standOrt64: String) -> Bool {
         do {
-            let update = camera.filter(self.id == id).update(self.CameraName <- CameraName, self.CameraRealName <- CameraRealName, self.CameraType <- CameraType, self.standOrt64 <- standOrt64)
+            let update = camera.filter(self.id == id).update(self.CameraName <- CameraName, self.CameraRealName <- CameraRealName, self.CameraType <- CameraType, self.PhoneNumber <- PhoneNumber, self.standOrt64 <- standOrt64)
             try db?.run(update)
             return true
         } catch {
@@ -171,7 +184,7 @@ class DatabaseManager {
         
         do {
             for cs in try db!.prepare(camera.order(creationDate.asc)){
-                let camera = WildsichtungCamera(id: cs[id], CameraRealName: cs[CameraRealName], CameraName: cs[CameraName], CameraType: cs[CameraType], standOrt64: cs[standOrt64], creationDate: cs[creationDate])
+                let camera = WildsichtungCamera(id: cs[id], CameraRealName: cs[CameraRealName], CameraName: cs[CameraName], CameraType: cs[CameraType], PhoneNumber: cs[PhoneNumber], standOrt64: cs[standOrt64], creationDate: cs[creationDate])
                 camList.append(camera)
             }
         } catch {

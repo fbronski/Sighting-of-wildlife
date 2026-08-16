@@ -1,6 +1,7 @@
 // Edited by FBronski
 // 20.07.2026
 
+import MessageUI
 import PhotosUI
 import SwiftUI
 
@@ -15,11 +16,14 @@ struct DetailCameraView: View {
     @State private var showSaveError = false
     @State private var showDeleteConfirmation = false
     @State private var isLoadingImage = false
+    @State private var showSMSComposer = false
+    @State private var showSMSUnavailableAlert = false
+    @State private var smsAlertMessage = ""
     @AppStorage("languageIndex") private var languageIndex = 0
    
     let fileManager = FileManager.default
+    private let willfinePhotoRequestCommand = "$03*1#1$"
     
-   
     var body: some View {
 
             VStack {
@@ -49,6 +53,29 @@ struct DetailCameraView: View {
                                 .textFieldStyle(.roundedBorder)
                                 .padding(.horizontal)
                                 .padding(.top, 8)
+                            
+                            TextField(appText(.cameraPhoneNumber, languageIndex: languageIndex), text: $camera.PhoneNumber)
+                                .keyboardType(.phonePad)
+                                .textContentType(.telephoneNumber)
+                                .textFieldStyle(.roundedBorder)
+                                .padding(.horizontal)
+                                .padding(.top, 8)
+                                .onChange(of: camera.PhoneNumber) { _, newValue in
+                                    let formattedNumber = formattedPhoneNumber(newValue)
+                                    if formattedNumber != newValue {
+                                        camera.PhoneNumber = formattedNumber
+                                    }
+                                }
+                            
+                            Button {
+                                requestPhotoBySMS()
+                            } label: {
+                                Label(appText(.requestPhotoBySMS, languageIndex: languageIndex), systemImage: "message.fill")
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
+                            .padding(.horizontal)
+                            .padding(.top, 8)
                             
                             Text(camera.creationDate.formattedString(dateFormat: "yyyy-MM-dd’T’HH:mm:ss"))
                                 .foregroundColor(.secondary)
@@ -92,6 +119,14 @@ struct DetailCameraView: View {
             }
             .alert(appText(.cameraSaveFailed, languageIndex: languageIndex), isPresented: $showSaveError) {
                 Button("OK", role: .cancel) {}
+            }
+            .alert(appText(.smsRequestUnavailable, languageIndex: languageIndex), isPresented: $showSMSUnavailableAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(smsAlertMessage)
+            }
+            .sheet(isPresented: $showSMSComposer) {
+                SMSComposerView(recipients: [normalizedSMSRecipient(camera.PhoneNumber)], body: willfinePhotoRequestCommand)
             }
             .confirmationDialog(appText(.cameraDeleteQuestion, languageIndex: languageIndex), isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
                 Button(appText(.cameraDelete, languageIndex: languageIndex), role: .destructive) {
@@ -178,12 +213,62 @@ struct DetailCameraView: View {
         }
     }
     
+    private func formattedPhoneNumber(_ value: String) -> String {
+        let trimmedValue = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedValue == "+" { return "+" }
+        
+        let digits = value.filter(\.isNumber)
+        guard !digits.isEmpty else { return "" }
+        
+        let countryCodeLength = min(2, digits.count)
+        let countryCode = String(digits.prefix(countryCodeLength))
+        let remainingDigits = String(digits.dropFirst(countryCodeLength))
+        let areaCode = String(remainingDigits.prefix(3))
+        let subscriberNumber = String(remainingDigits.dropFirst(3))
+        
+        var parts = ["+\(countryCode)"]
+        if !areaCode.isEmpty {
+            parts.append(areaCode)
+        }
+        if !subscriberNumber.isEmpty {
+            parts.append(subscriberNumber)
+        }
+        
+        return parts.joined(separator: " ")
+    }
+    
+    private func normalizedSMSRecipient(_ value: String) -> String {
+        let digits = value.filter(\.isNumber)
+        guard !digits.isEmpty else { return "" }
+        return "+\(digits)"
+    }
+    
+    private func requestPhotoBySMS() {
+        camera.PhoneNumber = formattedPhoneNumber(camera.PhoneNumber)
+        let recipient = normalizedSMSRecipient(camera.PhoneNumber)
+        guard !recipient.isEmpty else {
+            smsAlertMessage = appText(.cameraPhoneNumberMissing, languageIndex: languageIndex)
+            showSMSUnavailableAlert = true
+            return
+        }
+        
+        guard MFMessageComposeViewController.canSendText() else {
+            smsAlertMessage = appText(.smsRequestUnavailableMessage, languageIndex: languageIndex)
+            showSMSUnavailableAlert = true
+            return
+        }
+        
+        showSMSComposer = true
+    }
+    
     private func saveCamera() {
+        camera.PhoneNumber = formattedPhoneNumber(camera.PhoneNumber)
         let didSave = DatabaseManager.shared.updateCamera(
             id: camera.id,
             CameraName: camera.CameraName,
             CameraRealName: camera.CameraRealName,
             CameraType: camera.CameraType,
+            PhoneNumber: camera.PhoneNumber,
             standOrt64: camera.standOrt64
         )
         

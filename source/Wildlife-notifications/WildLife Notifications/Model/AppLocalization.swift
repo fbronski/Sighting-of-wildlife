@@ -69,6 +69,8 @@ enum AppTextKey: String, CaseIterable {
     case cameraName
     case cameraType
     case cameraLocation
+    case cameraPhoneNumber
+    case cameraPhoneNumberMissing
     case cameraDelete
     case cameraDeleteQuestion
     case cameraSaveFailed
@@ -123,6 +125,7 @@ enum AppTextKey: String, CaseIterable {
     case performNetworkRequest
     case refreshView
     case requestPermission
+    case requestPhotoBySMS
     case save
     case selectPhoto
     case scrollHint
@@ -130,6 +133,8 @@ enum AppTextKey: String, CaseIterable {
     case scrollPosition
     case settings
     case sharePhoto
+    case smsRequestUnavailable
+    case smsRequestUnavailableMessage
     case subtitle
     case testLocalPush
     case title
@@ -176,6 +181,8 @@ private let englishAppTexts: [AppTextKey: String] = [
     .cameraName: "Camera name",
     .cameraType: "Camera type",
     .cameraLocation: "Camera location",
+    .cameraPhoneNumber: "Mobile number",
+    .cameraPhoneNumberMissing: "Enter the camera mobile number first.",
     .cameraDelete: "Delete camera",
     .cameraDeleteQuestion: "Delete camera?",
     .cameraSaveFailed: "Camera could not be saved",
@@ -230,6 +237,7 @@ private let englishAppTexts: [AppTextKey: String] = [
     .performNetworkRequest: "Perform network request",
     .refreshView: "Refresh view",
     .requestPermission: "Request permission",
+    .requestPhotoBySMS: "Request photo by SMS",
     .save: "Save",
     .selectPhoto: "Select photo",
     .scrollHint: "Fast scroll on the right edge",
@@ -237,6 +245,8 @@ private let englishAppTexts: [AppTextKey: String] = [
     .scrollPosition: "List position",
     .settings: "Settings",
     .sharePhoto: "Share photo",
+    .smsRequestUnavailable: "SMS request unavailable",
+    .smsRequestUnavailableMessage: "This device cannot send SMS messages.",
     .subtitle: "Subtitle:",
     .testLocalPush: "Test local push",
     .title: "Title:",
@@ -267,6 +277,8 @@ private let spanishAppTexts: [AppTextKey: String] = [
     .cameraName: "Nombre de la cámara",
     .cameraType: "Tipo de cámara",
     .cameraLocation: "Ubicación de la cámara",
+    .cameraPhoneNumber: "Número de móvil",
+    .cameraPhoneNumberMissing: "Introduce primero el número móvil de la cámara.",
     .cameraDelete: "Eliminar cámara",
     .cameraDeleteQuestion: "¿Eliminar cámara?",
     .cameraSaveFailed: "No se pudo guardar la cámara",
@@ -321,6 +333,7 @@ private let spanishAppTexts: [AppTextKey: String] = [
     .performNetworkRequest: "Realizar solicitud de red",
     .refreshView: "Actualizar vista",
     .requestPermission: "Solicitar permiso",
+    .requestPhotoBySMS: "Solicitar foto por SMS",
     .save: "Guardar",
     .selectPhoto: "Seleccionar foto",
     .scrollHint: "Desplazamiento rápido en el borde derecho",
@@ -328,6 +341,8 @@ private let spanishAppTexts: [AppTextKey: String] = [
     .scrollPosition: "Posición en la lista",
     .settings: "Ajustes",
     .sharePhoto: "Compartir foto",
+    .smsRequestUnavailable: "Solicitud SMS no disponible",
+    .smsRequestUnavailableMessage: "Este dispositivo no puede enviar SMS.",
     .subtitle: "Subtítulo:",
     .testLocalPush: "Probar push local",
     .title: "Título:",
@@ -358,6 +373,8 @@ private let frenchAppTexts: [AppTextKey: String] = [
     .cameraName: "Nom de la caméra",
     .cameraType: "Type de caméra",
     .cameraLocation: "Emplacement de la caméra",
+    .cameraPhoneNumber: "Numéro mobile",
+    .cameraPhoneNumberMissing: "Saisissez d’abord le numéro mobile de la caméra.",
     .cameraDelete: "Supprimer la caméra",
     .cameraDeleteQuestion: "Supprimer la caméra ?",
     .cameraSaveFailed: "La caméra n’a pas pu être enregistrée",
@@ -412,6 +429,7 @@ private let frenchAppTexts: [AppTextKey: String] = [
     .performNetworkRequest: "Effectuer une requête réseau",
     .refreshView: "Actualiser la vue",
     .requestPermission: "Demander l’autorisation",
+    .requestPhotoBySMS: "Demander une photo par SMS",
     .save: "Enregistrer",
     .selectPhoto: "Sélectionner une photo",
     .scrollHint: "Défilement rapide sur le bord droit",
@@ -419,6 +437,8 @@ private let frenchAppTexts: [AppTextKey: String] = [
     .scrollPosition: "Position dans la liste",
     .settings: "Réglages",
     .sharePhoto: "Partager la photo",
+    .smsRequestUnavailable: "Demande SMS indisponible",
+    .smsRequestUnavailableMessage: "Cet appareil ne peut pas envoyer de SMS.",
     .subtitle: "Sous-titre :",
     .testLocalPush: "Tester une notification locale",
     .title: "Titre :",
@@ -449,6 +469,8 @@ private let italianAppTexts: [AppTextKey: String] = [
     .cameraName: "Nome fotocamera",
     .cameraType: "Tipo fotocamera",
     .cameraLocation: "Posizione fotocamera",
+    .cameraPhoneNumber: "Numero di cellulare",
+    .cameraPhoneNumberMissing: "Inserisci prima il numero di cellulare della fotocamera.",
     .cameraDelete: "Elimina fotocamera",
     .cameraDeleteQuestion: "Eliminare la fotocamera?",
     .cameraSaveFailed: "Impossibile salvare la fotocamera",
@@ -503,6 +525,7 @@ private let italianAppTexts: [AppTextKey: String] = [
     .performNetworkRequest: "Esegui richiesta di rete",
     .refreshView: "Aggiorna vista",
     .requestPermission: "Richiedi permesso",
+    .requestPhotoBySMS: "Richiedi foto via SMS",
     .save: "Salva",
     .selectPhoto: "Seleziona foto",
     .scrollHint: "Scorrimento rapido sul bordo destro",
@@ -510,6 +533,8 @@ private let italianAppTexts: [AppTextKey: String] = [
     .scrollPosition: "Posizione nella lista",
     .settings: "Impostazioni",
     .sharePhoto: "Condividi foto",
+    .smsRequestUnavailable: "Richiesta SMS non disponibile",
+    .smsRequestUnavailableMessage: "Questo dispositivo non può inviare SMS.",
     .subtitle: "Sottotitolo:",
     .testLocalPush: "Prova push locale",
     .title: "Titolo:",
@@ -540,6 +565,8 @@ private let chineseAppTexts: [AppTextKey: String] = [
     .cameraName: "相机名称",
     .cameraType: "相机类型",
     .cameraLocation: "相机位置",
+    .cameraPhoneNumber: "手机号码",
+    .cameraPhoneNumberMissing: "请先输入相机手机号码。",
     .cameraDelete: "删除相机",
     .cameraDeleteQuestion: "删除相机？",
     .cameraSaveFailed: "无法保存相机",
@@ -594,6 +621,7 @@ private let chineseAppTexts: [AppTextKey: String] = [
     .performNetworkRequest: "执行网络请求",
     .refreshView: "刷新视图",
     .requestPermission: "请求权限",
+    .requestPhotoBySMS: "通过短信请求照片",
     .save: "保存",
     .selectPhoto: "选择照片",
     .scrollHint: "在右边缘快速滚动",
@@ -601,6 +629,8 @@ private let chineseAppTexts: [AppTextKey: String] = [
     .scrollPosition: "列表位置",
     .settings: "设置",
     .sharePhoto: "分享照片",
+    .smsRequestUnavailable: "短信请求不可用",
+    .smsRequestUnavailableMessage: "此设备无法发送短信。",
     .subtitle: "副标题：",
     .testLocalPush: "测试本地推送",
     .title: "标题：",
@@ -631,6 +661,8 @@ private let japaneseAppTexts: [AppTextKey: String] = [
     .cameraName: "カメラ名",
     .cameraType: "カメラの種類",
     .cameraLocation: "カメラの場所",
+    .cameraPhoneNumber: "携帯電話番号",
+    .cameraPhoneNumberMissing: "先にカメラの携帯電話番号を入力してください。",
     .cameraDelete: "カメラを削除",
     .cameraDeleteQuestion: "カメラを削除しますか？",
     .cameraSaveFailed: "カメラを保存できませんでした",
@@ -685,6 +717,7 @@ private let japaneseAppTexts: [AppTextKey: String] = [
     .performNetworkRequest: "ネットワークリクエストを実行",
     .refreshView: "表示を更新",
     .requestPermission: "権限を要求",
+    .requestPhotoBySMS: "SMSで写真をリクエスト",
     .save: "保存",
     .selectPhoto: "写真を選択",
     .scrollHint: "右端で高速スクロール",
@@ -692,6 +725,8 @@ private let japaneseAppTexts: [AppTextKey: String] = [
     .scrollPosition: "リスト位置",
     .settings: "設定",
     .sharePhoto: "写真を共有",
+    .smsRequestUnavailable: "SMSリクエストは利用できません",
+    .smsRequestUnavailableMessage: "このデバイスではSMSを送信できません。",
     .subtitle: "サブタイトル:",
     .testLocalPush: "ローカルプッシュをテスト",
     .title: "タイトル:",
@@ -722,6 +757,8 @@ private let koreanAppTexts: [AppTextKey: String] = [
     .cameraName: "카메라 이름",
     .cameraType: "카메라 유형",
     .cameraLocation: "카메라 위치",
+    .cameraPhoneNumber: "휴대폰 번호",
+    .cameraPhoneNumberMissing: "먼저 카메라 휴대폰 번호를 입력하세요.",
     .cameraDelete: "카메라 삭제",
     .cameraDeleteQuestion: "카메라를 삭제할까요?",
     .cameraSaveFailed: "카메라를 저장할 수 없습니다",
@@ -776,6 +813,7 @@ private let koreanAppTexts: [AppTextKey: String] = [
     .performNetworkRequest: "네트워크 요청 실행",
     .refreshView: "보기 새로고침",
     .requestPermission: "권한 요청",
+    .requestPhotoBySMS: "SMS로 사진 요청",
     .save: "저장",
     .selectPhoto: "사진 선택",
     .scrollHint: "오른쪽 가장자리에서 빠르게 스크롤",
@@ -783,6 +821,8 @@ private let koreanAppTexts: [AppTextKey: String] = [
     .scrollPosition: "목록 위치",
     .settings: "설정",
     .sharePhoto: "사진 공유",
+    .smsRequestUnavailable: "SMS 요청을 사용할 수 없음",
+    .smsRequestUnavailableMessage: "이 기기에서는 SMS를 보낼 수 없습니다.",
     .subtitle: "부제목:",
     .testLocalPush: "로컬 푸시 테스트",
     .title: "제목:",
@@ -813,6 +853,8 @@ private let germanAppTexts: [AppTextKey: String] = [
     .cameraName: "Kameraname",
     .cameraType: "Kameratyp",
     .cameraLocation: "Kamerastandort",
+    .cameraPhoneNumber: "Mobilfunknummer",
+    .cameraPhoneNumberMissing: "Gib zuerst die Mobilfunknummer der Kamera ein.",
     .cameraDelete: "Kamera löschen",
     .cameraDeleteQuestion: "Kamera löschen?",
     .cameraSaveFailed: "Kamera konnte nicht gespeichert werden",
@@ -867,6 +909,7 @@ private let germanAppTexts: [AppTextKey: String] = [
     .performNetworkRequest: "Netzwerkanfrage ausführen",
     .refreshView: "Ansicht aktualisieren",
     .requestPermission: "Berechtigung anfordern",
+    .requestPhotoBySMS: "Bild per SMS anfordern",
     .save: "Speichern",
     .selectPhoto: "Foto auswählen",
     .scrollHint: "Am rechten Rand schnell scrollen",
@@ -874,6 +917,8 @@ private let germanAppTexts: [AppTextKey: String] = [
     .scrollPosition: "Listenposition",
     .settings: "Einstellungen",
     .sharePhoto: "Foto teilen",
+    .smsRequestUnavailable: "SMS-Anfrage nicht verfügbar",
+    .smsRequestUnavailableMessage: "Dieses Gerät kann keine SMS senden.",
     .subtitle: "Untertitel:",
     .testLocalPush: "Lokale Push-Nachricht testen",
     .title: "Titel:",
