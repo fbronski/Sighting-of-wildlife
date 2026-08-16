@@ -57,7 +57,11 @@ struct SichtungView: View {
     @State private var dateMarkers: [SichtungDateMarker] = []
     @State private var dateBadgeLocation: CGPoint?
     @State private var dateBadgeText = ""
+    @State private var scrollPositionProgress: CGFloat = 0
     @State private var showScrollToTopButton = false
+    @State private var isFastScrollHandleActive = false
+    @State private var showFastScrollHint = false
+    @AppStorage("hasSeenSichtungFastScrollHint") private var hasSeenFastScrollHint = false
     
     private static let scrollDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -275,6 +279,7 @@ struct SichtungView: View {
                     }
                 }
                 .listStyle(PlainListStyle())
+                .scrollIndicators(.hidden)
                 .coordinateSpace(name: "SichtungScroll")
                 .onPreferenceChange(SichtungDateMarkerPreferenceKey.self) { markers in
                     updateListPositionState(with: markers)
@@ -292,10 +297,45 @@ struct SichtungView: View {
                 )
                 .overlay(alignment: .topLeading) {
                     if let dateBadgeLocation {
-                        SichtungDateBadge(text: dateBadgeText)
+                        SichtungScrollPositionBadge(text: dateBadgeText, progress: scrollPositionProgress)
                             .position(x: dateBadgeX(for: dateBadgeLocation.x), y: dateBadgeLocation.y)
                             .transition(.opacity.combined(with: .scale(scale: 0.95)))
                             .allowsHitTesting(false)
+                    }
+                }
+                .overlay(alignment: .trailing) {
+                    if showScrollToTopButton {
+                        GeometryReader { proxy in
+                            FastScrollHandle(isActive: isFastScrollHandleActive)
+                                .frame(width: 72, height: proxy.size.height)
+                                .contentShape(Rectangle())
+                                .highPriorityGesture(
+                                    DragGesture(minimumDistance: 0, coordinateSpace: .local)
+                                        .onChanged { value in
+                                            isFastScrollHandleActive = true
+                                            fastScroll(to: value.location, in: proxy.size, using: scrollProxy)
+                                        }
+                                        .onEnded { _ in
+                                            isFastScrollHandleActive = false
+                                            withAnimation(.easeOut(duration: 0.15)) {
+                                                dateBadgeLocation = nil
+                                            }
+                                        }
+                                )
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+
+                            if showFastScrollHint {
+                                FastScrollHintView()
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                                    .padding(.trailing, 28)
+                                    .padding(.top, 116)
+                                    .onTapGesture {
+                                        dismissFastScrollHint()
+                                    }
+                                    .transition(.opacity.combined(with: .move(edge: .trailing)))
+                            }
+                        }
+                        .transition(.opacity)
                     }
                 }
                 .overlay(alignment: .bottomTrailing) {
@@ -552,10 +592,14 @@ struct SichtungView: View {
     
     private func updateListPositionState(with markers: [SichtungDateMarker]) {
         dateMarkers = markers
-        guard let firstID = searchResults.first?.id, !markers.isEmpty else {
+        let results = searchResults
+        guard let firstID = results.first?.id, !markers.isEmpty else {
+            scrollPositionProgress = 0
             setScrollToTopButtonVisible(false)
             return
         }
+
+        updateScrollPositionProgress(with: markers, results: results)
 
         guard let firstMarker = markers.first(where: { $0.id == firstID }) else {
             setScrollToTopButtonVisible(true)
@@ -573,6 +617,56 @@ struct SichtungView: View {
         withAnimation(.easeOut(duration: 0.18)) {
             showScrollToTopButton = isVisible
         }
+
+        if isVisible {
+            presentFastScrollHintIfNeeded()
+        }
+    }
+
+    private func presentFastScrollHintIfNeeded() {
+        guard !hasSeenFastScrollHint, !showFastScrollHint else { return }
+
+        showFastScrollHint = true
+        Task {
+            try? await Task.sleep(for: .seconds(5))
+            await MainActor.run {
+                dismissFastScrollHint()
+            }
+        }
+    }
+
+    private func dismissFastScrollHint() {
+        guard showFastScrollHint else { return }
+
+        hasSeenFastScrollHint = true
+        withAnimation(.easeOut(duration: 0.18)) {
+            showFastScrollHint = false
+        }
+    }
+
+    private func updateScrollPositionProgress(with markers: [SichtungDateMarker], results: [Wildsichtung]) {
+        guard results.count > 1 else {
+            scrollPositionProgress = 0
+            return
+        }
+
+        let visibleMarkers = markers.filter { $0.frame.maxY >= 0 }
+        guard let topMarker = visibleMarkers.min(by: { $0.frame.midY < $1.frame.midY }) else {
+            return
+        }
+
+        updateScrollPositionProgress(for: topMarker.id, results: results)
+    }
+
+    private func updateScrollPositionProgress(for id: Int64, results: [Wildsichtung]? = nil) {
+        let currentResults = results ?? searchResults
+        guard currentResults.count > 1,
+              let index = currentResults.firstIndex(where: { $0.id == id }) else {
+            scrollPositionProgress = 0
+            return
+        }
+
+        scrollPositionProgress = CGFloat(index) / CGFloat(currentResults.count - 1)
     }
     
     private func updateDateBadge(at location: CGPoint) {
@@ -580,6 +674,7 @@ struct SichtungView: View {
             return
         }
 
+        updateScrollPositionProgress(for: marker.id)
         dateBadgeText = Self.scrollDateFormatter.string(from: marker.date)
         withAnimation(.easeOut(duration: 0.08)) {
             dateBadgeLocation = location
@@ -604,6 +699,21 @@ struct SichtungView: View {
             proxy.scrollTo(topListID, anchor: .top)
             showScrollToTopButton = false
         }
+    }
+
+    private func fastScroll(to location: CGPoint, in size: CGSize, using proxy: ScrollViewProxy) {
+        let results = searchResults
+        guard !results.isEmpty else { return }
+
+        let normalizedPosition = min(max(location.y / max(size.height, 1), 0), 1)
+        let rawIndex = (CGFloat(results.count - 1) * normalizedPosition).rounded()
+        let targetIndex = min(max(Int(rawIndex), 0), results.count - 1)
+        let target = results[targetIndex]
+
+        proxy.scrollTo(target.id, anchor: .top)
+        scrollPositionProgress = normalizedPosition
+        dateBadgeText = Self.scrollDateFormatter.string(from: target.creationDate)
+        dateBadgeLocation = CGPoint(x: max(size.width - 32, 32), y: min(max(location.y, 32), size.height - 32))
     }
 
     private func prepareDateDeletionConfirmation() {
@@ -872,22 +982,88 @@ struct SichtungView: View {
        }
 }
 
-private struct SichtungDateBadge: View {
+private struct SichtungScrollPositionBadge: View {
     let text: String
+    let progress: CGFloat
 
     var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "calendar.badge.clock")
-                .imageScale(.small)
-            Text(text)
-                .font(.caption.weight(.semibold))
-                .monospacedDigit()
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 6) {
+                Image(systemName: "calendar.badge.clock")
+                    .imageScale(.small)
+                Text(text)
+                    .font(.caption.weight(.semibold))
+                    .monospacedDigit()
+            }
+
+            ScrollProgressBar(progress: progress)
         }
         .foregroundStyle(.white)
         .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .background(.black.opacity(0.78), in: Capsule())
+        .padding(.vertical, 8)
+        .background(.black.opacity(0.78), in: RoundedRectangle(cornerRadius: 14))
         .shadow(color: .black.opacity(0.25), radius: 8, x: 0, y: 3)
+    }
+}
+
+private struct ScrollProgressBar: View {
+    let progress: CGFloat
+
+    var body: some View {
+        GeometryReader { proxy in
+            let clampedProgress = min(max(progress, 0), 1)
+            let thumbX = clampedProgress * max(proxy.size.width - 10, 0)
+
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(.white.opacity(0.28))
+                    .frame(height: 4)
+                Capsule()
+                    .fill(.white.opacity(0.85))
+                    .frame(width: max(10, proxy.size.width * clampedProgress), height: 4)
+                Circle()
+                    .fill(.white)
+                    .frame(width: 10, height: 10)
+                    .offset(x: thumbX)
+            }
+            .frame(maxHeight: .infinity)
+        }
+        .frame(width: 160, height: 12)
+        .accessibilityLabel("Listenposition")
+    }
+}
+
+private struct FastScrollHandle: View {
+    let isActive: Bool
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            Color.clear
+            Capsule()
+                .fill(.black.opacity(isActive ? 0.42 : 0.24))
+                .frame(width: isActive ? 14 : 10, height: isActive ? 168 : 128)
+                .padding(.trailing, 8)
+        }
+        .padding(.vertical, 56)
+        .accessibilityLabel("Schnell scrollen")
+    }
+}
+
+private struct FastScrollHintView: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            Text("Am rechten Rand schnell scrollen")
+                .font(.caption.weight(.semibold))
+                .fixedSize(horizontal: false, vertical: true)
+            Image(systemName: "arrow.right")
+                .imageScale(.small)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(.black.opacity(0.78), in: Capsule())
+        .shadow(color: .black.opacity(0.24), radius: 8, x: 0, y: 3)
+        .accessibilityLabel("Hinweis: Am rechten Rand schnell scrollen")
     }
 }
 
