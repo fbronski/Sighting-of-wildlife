@@ -30,6 +30,11 @@ private struct SichtungDateMarkerPreferenceKey: PreferenceKey {
     }
 }
 
+private struct SichtungGridRow: Identifiable {
+    let id: Int64
+    let items: [Wildsichtung]
+}
+
 struct SichtungView: View {
    
     @State var viewModel: RootViewModel
@@ -49,6 +54,7 @@ struct SichtungView: View {
     @State private var shouldConfirmDateDeletion = false
     @Environment(\.timePickerStyle) private var style
     @Environment(\.scenePhase) private var scenePhase
+    @State private var isSichtungViewActive = false
     @State private var searchText = ""
     
     // Add automatic refresh timer
@@ -63,6 +69,7 @@ struct SichtungView: View {
     @State private var showFastScrollHint = false
     @AppStorage("hasSeenSichtungFastScrollHint") private var hasSeenFastScrollHint = false
     @AppStorage("languageIndex") private var languageIndex = 0
+    @AppStorage("sichtungGridColumnCount") private var gridColumnCount = 1
     
     private static let scrollDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -79,6 +86,19 @@ struct SichtungView: View {
     }()
     
     private let topListID = "SichtungListTop"
+    private let gridColumnOptions = [1, 2, 4, 8]
+
+    private var effectiveGridColumnCount: Int {
+        gridColumnOptions.contains(gridColumnCount) ? gridColumnCount : 1
+    }
+
+    private var gridSpacing: CGFloat {
+        effectiveGridColumnCount == 1 ? 12 : 8
+    }
+
+    private var listBackgroundColor: Color {
+        Color(.systemBackground)
+    }
 
     private func t(_ key: AppTextKey) -> String {
         appText(key, languageIndex: languageIndex)
@@ -94,126 +114,59 @@ struct SichtungView: View {
                         .id(topListID)
                         .listRowSeparator(.hidden)
                         .listRowInsets(EdgeInsets())
+                        .listRowBackground(listBackgroundColor)
 
-                    ForEach(searchResults) { ws in
-                        @State var item = ws
-                        ZStack {
-                            CardView(wildsichtung: ws, isPinned: ws.pinned).contextMenu {
-                                Button {
-                                    Task {
-                                        
-                                        await updateItem(item)
-                                        
-                                    }
-                                } label: {
-                                    Label(t(.update), systemImage: "arrow.trianglehead.clockwise.rotate.90")
-                                }
-                                .tint(.orange)
-                                
-                                Button {
-                                    
-                                         deleteItem(item)
-   	        		 	     	   
-  	  	     	     	  	    
-                                } label: {
-                                    Label(t(.delete), systemImage: "trash")
-                                }
-                                .tint(.red)
-                                
-                                /*Button {
-                                    Task {
-                                        
-                                        await deleteImage(item)
-                                        await deleteItem(item)
-                                        
-                                    }
-                                } label: {
-                                    Label("Delete image", systemImage: "arrow.up.trash")
-                                }
-                                .tint(.red)*/
-   	         	 	     
-      	    	        
-                                if item.pinned {
-                                    Button {
-                                        pinItem(item)
-                                    } label: {
-                                        Label(t(.unpin), systemImage: "pin.slash")
-                                    }
-                                    .tint(.red)
-                                } else {
-                                    Button {
-                                        pinItem(item)
-                                    } label: {
-                                        Label(t(.pin), systemImage: "pin")
-                                    }
-                                    .tint(.blue)
-                                }
-                                
-                                Divider()
-                                
-                                Button {
-                                    Task { await sendPlotCMDPerFTP(item) }
-                                } label: {
-                                    Label(t(.getPlotted), systemImage: "photo.artframe.circle")
-                                }
-                                .tint(.cyan)
-                                if !item.imagebase64.isEmpty {
-                                    
-                                    let data = Data(base64Encoded: item.imagebase64)
-                                    if(data != nil) {
-                                        let uiImage = UIImage(data: data!)
-                                        let shareImage = Image(uiImage: uiImage!)
-                                        ShareLink(item: shareImage, preview: SharePreview(t(.wildSightings), image: shareImage)) {
-                                            Label(t(.sharePhoto), systemImage: "square.and.arrow.up")
-                                        }.tint(.purple)
-                                    }
-                                }
-                                
+                    ForEach(groupedSearchResults) { row in
+                        HStack(alignment: .top, spacing: gridSpacing) {
+                            ForEach(row.items) { item in
+                                sichtungCardCell(item)
+                                    .frame(maxWidth: .infinity, alignment: .top)
                             }
-                            NavigationLink(destination: DetailView(wildsichtung: item)) {
-                                
-                                EmptyView()
-                                
+
+                            ForEach(0..<emptyGridSlots(for: row), id: \.self) { _ in
+                                Color.clear
+                                    .frame(maxWidth: .infinity)
                             }
-                            .opacity(0)
                         }
+                        .padding(.horizontal, gridSpacing)
+                        .padding(.vertical, gridSpacing / 2)
                         .background {
-                            GeometryReader { proxy in
-                                Color.clear.preference(
-                                    key: SichtungDateMarkerPreferenceKey.self,
-                                    value: [
-                                        SichtungDateMarker(
-                                            id: ws.id,
-                                            frame: proxy.frame(in: .named("SichtungScroll")),
-                                            date: ws.creationDate
-                                        )
-                                    ]
-                                )
-                            }
-                        }/*.swipeActions(edge: .leading) {
-                            Button {
-                                Task {
-                                    
-                                    await updateItem(item)
-                                    
+                            if let markerItem = row.items.first {
+                                GeometryReader { proxy in
+                                    Color.clear.preference(
+                                        key: SichtungDateMarkerPreferenceKey.self,
+                                        value: [
+                                            SichtungDateMarker(
+                                                id: markerItem.id,
+                                                frame: proxy.frame(in: .named("SichtungScroll")),
+                                                date: markerItem.creationDate
+                                            )
+                                        ]
+                                    )
                                 }
-                            } label: {
-                                Label("Update", systemImage: "arrow.trianglehead.clockwise.rotate.90")
-                            }
-                            .tint(.orange)
-                        }*/.swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                deleteItem(item)
-                            } label: {
-                                Label(t(.delete), systemImage: "trash")
                             }
                         }
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(listBackgroundColor)
                     }
-                    .listRowSeparator(.hidden)
                     
                 }
+                .scrollContentBackground(.hidden)
+                .background(listBackgroundColor)
                 .navigationTitle(t(.wildSightings))
                 .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Picker("Spalten", selection: $gridColumnCount) {
+                            ForEach(gridColumnOptions, id: \.self) { count in
+                                Text("\(count)").tag(count)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 156)
+                        .accessibilityLabel("Spalten")
+                    }
+
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Menu("...") {
                             Button(t(.topOfList), systemImage: "arrow.up.to.line") {
@@ -457,38 +410,105 @@ struct SichtungView: View {
         }.searchable(text: $searchText)
         .onAppear {
             // Start automatic refresh when view appears
+            isSichtungViewActive = true
             startAutoRefresh()
-            clearAppIconBadge()
+            setSichtungViewBadgeResetActive(true)
            
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
-                clearAppIconBadge()
+                if isSichtungViewActive {
+                    setSichtungViewBadgeResetActive(true)
+                }
+            } else {
+                setSichtungViewBadgeResetActive(false)
             }
         }
         .onDisappear {
             // Stop timer when view disappears
+            isSichtungViewActive = false
             stopAutoRefresh()
             setSichtungViewBadgeResetActive(false)
         }
     }
     
-    private func clearAppIconBadge() {
-        setSichtungViewBadgeResetActive(true)
-    }
-
     private func setSichtungViewBadgeResetActive(_ isActive: Bool) {
         if let appDelegate = UIApplication.shared.delegate as? AppDelegate {
             appDelegate.setSichtungViewVisible(isActive)
-        } else if isActive {
-            Task {
-                do {
-                    try await UNUserNotificationCenter.current().setBadgeCount(0)
-                } catch {
-                    print("Error clearing the badge count: \(error)")
-                }
-            }
         }
+    }
+
+    @ViewBuilder
+    private func sichtungCardCell(_ item: Wildsichtung) -> some View {
+        NavigationLink(destination: DetailView(wildsichtung: item)) {
+            CardView(wildsichtung: item, isPinned: item.pinned, columnCount: effectiveGridColumnCount)
+                .contextMenu {
+                    sichtungContextMenu(for: item)
+                }
+        }
+        .buttonStyle(.plain)
+        .id(item.id)
+    }
+
+    @ViewBuilder
+    private func sichtungContextMenu(for item: Wildsichtung) -> some View {
+        Button {
+            Task {
+                await updateItem(item)
+            }
+        } label: {
+            Label(t(.update), systemImage: "arrow.trianglehead.clockwise.rotate.90")
+        }
+        .tint(.orange)
+
+        Button {
+            deleteItem(item)
+        } label: {
+            Label(t(.delete), systemImage: "trash")
+        }
+        .tint(.red)
+
+        if item.pinned {
+            Button {
+                pinItem(item)
+            } label: {
+                Label(t(.unpin), systemImage: "pin.slash")
+            }
+            .tint(.red)
+        } else {
+            Button {
+                pinItem(item)
+            } label: {
+                Label(t(.pin), systemImage: "pin")
+            }
+            .tint(.blue)
+        }
+
+        Divider()
+
+        Button {
+            Task { await sendPlotCMDPerFTP(item) }
+        } label: {
+            Label(t(.getPlotted), systemImage: "photo.artframe.circle")
+        }
+        .tint(.cyan)
+
+        if let shareImage = shareImage(for: item) {
+            ShareLink(item: shareImage, preview: SharePreview(t(.wildSightings), image: shareImage)) {
+                Label(t(.sharePhoto), systemImage: "square.and.arrow.up")
+            }
+            .tint(.purple)
+        }
+    }
+
+    private func shareImage(for item: Wildsichtung) -> Image? {
+        guard !item.imagebase64.isEmpty,
+              let data = Data(base64Encoded: item.imagebase64),
+              let uiImage = UIImage(data: data) else {
+            return nil
+        }
+
+        return Image(uiImage: uiImage)
     }
     
     // Add this function to start automatic refreshing
@@ -523,6 +543,24 @@ struct SichtungView: View {
                 return viewModel.sichtungen.filter { $0.title.contains(searchText) || $0.yolostatus.contains(searchText) || $0.body.contains(searchText)} 
             }
         }
+
+    private var groupedSearchResults: [SichtungGridRow] {
+        let results = searchResults
+        let columnCount = effectiveGridColumnCount
+        guard columnCount > 1 else {
+            return results.map { SichtungGridRow(id: $0.id, items: [$0]) }
+        }
+
+        return stride(from: 0, to: results.count, by: columnCount).map { startIndex in
+            let endIndex = min(startIndex + columnCount, results.count)
+            let items = Array(results[startIndex..<endIndex])
+            return SichtungGridRow(id: items.first?.id ?? Int64(startIndex), items: items)
+        }
+    }
+
+    private func emptyGridSlots(for row: SichtungGridRow) -> Int {
+        max(0, effectiveGridColumnCount - row.items.count)
+    }
 
     private var availableDeletionYears: [Int] {
         let years = Set(viewModel.sichtungen.map { Calendar.current.component(.year, from: $0.creationDate) })

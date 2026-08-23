@@ -81,6 +81,10 @@ class DatabaseManager {
     }
     
     func addSichtung(title: String,cameraid: String, subTitle: String, body: String, immichid: String, yolostatus: String, imagebase64: String, creationDate: Date) -> Int64? {
+        guard !hasSichtung(immichid: immichid) else {
+            return nil
+        }
+
         do {
             let insert = sichtung.insert(self.title <- title,self.cameraid <- cameraid, self.subTitle <- subTitle, self.body <- body, self.immichid <- immichid, self.yolostatus <- yolostatus, self.imagebase64 <- imagebase64, self.creationDate <- creationDate, pinned <- false)
             let id = try db?.run(insert)
@@ -88,6 +92,15 @@ class DatabaseManager {
         } catch {
             print("Insert failed. Error: \(error)")
             return nil
+        }
+    }
+
+    func hasSichtung(immichid: String) -> Bool {
+        do {
+            return try db?.pluck(sichtung.filter(self.immichid == immichid)) != nil
+        } catch {
+            print("Select failed. Error: \(error)")
+            return false
         }
     }
     

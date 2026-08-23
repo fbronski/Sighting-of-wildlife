@@ -61,7 +61,7 @@ public class RootViewModel: Identifiable  {
     nonisolated(nonsending)
     func requestPermission() async {
         let opt1: UNAuthorizationOptions = [.alert, .badge, .sound, .providesAppNotificationSettings]
-        let opt2: UNAuthorizationOptions = [.provisional, .providesAppNotificationSettings]
+        let opt2: UNAuthorizationOptions = [.provisional, .alert, .badge, .sound, .providesAppNotificationSettings]
         do {
             try await UNUserNotificationCenter.current()
                 .requestAuthorization(options: requestType == 0 ? opt1 : opt2)
@@ -98,34 +98,40 @@ public class RootViewModel: Identifiable  {
     }
 
     
-    func notificationReceived(with payload: [AnyHashable : Any]) async {
+    @discardableResult
+    func notificationReceived(with payload: [AnyHashable : Any]) async -> Bool {
         clearFields()
-        guard let aps = payload["aps"] as? [AnyHashable : Any],
-              let alert = aps["alert"] as? [AnyHashable : Any] else { return }
-        notificationTitle = alert["title"] as? String ?? ""
-        notificationSubtitle = alert["subtitle"] as? String ?? ""
-        notificationBody = alert["body"] as? String ?? ""
-        
-        if let immichID = payload["ImmichID"] as? String {
-            notificationImmichId = immichID
-            url = URL(string: UserDefaults.standard.string(forKey: "immichurltext")!+"/photos/\(immichID)")
-            debugPrint("Immich ID received \(immichID)")
-            
-            /*let response =  try? await AssetsAPI.downloadAsset(id: UUID(uuidString: immichID)!, key: nil)
-            
-           
-            let ab = response?.dataRepresentation.base64EncodedString()
-            addSichtung(title: notificationTitle, subtitle: notificationSubtitle, body: notificationBody, immichid: immichID, yoloStatus: notificationYoloStatus, imagebase64: ab ?? "")*/
+
+        let notification = notificationPayload(from: payload)
+        notificationTitle = notification.title
+        notificationSubtitle = notification.subtitle
+        notificationBody = notification.body
+        notificationImmichId = notification.immichID
+        notificationYoloStatus = notification.yoloStatus
+
+        guard !notification.immichID.isEmpty else {
+            return false
         }
-        
-        
-        
+
+        if let immichURLText = UserDefaults.standard.string(forKey: "immichurltext") {
+            url = URL(string: "\(immichURLText)/photos/\(notification.immichID)")
+        }
+        debugPrint("Immich ID received \(notification.immichID)")
+
+        return DatabaseManager.shared.addSichtung(
+            title: notification.title,
+            cameraid: notification.cameraID,
+            subTitle: notification.subtitle,
+            body: notification.body,
+            immichid: notification.immichID,
+            yolostatus: notification.yoloStatus,
+            imagebase64: "",
+            creationDate: Date()
+        ) != nil
     }
 
    
     func backgroundTask(with userInfo: [AnyHashable : Any]) {
-        clearFields()
-
         customAction = userInfo["ImmichID"] as? String ?? ""
     }
 
@@ -237,6 +243,53 @@ public class RootViewModel: Identifiable  {
 }
 
 private extension RootViewModel {
+
+    func notificationPayload(from payload: [AnyHashable: Any]) -> (
+        title: String,
+        subtitle: String,
+        body: String,
+        immichID: String,
+        yoloStatus: String,
+        cameraID: String
+    ) {
+        let aps = payload["aps"] as? [AnyHashable: Any]
+        let alert = aps?["alert"]
+        var title = ""
+        var subtitle = ""
+        var body = ""
+
+        if let alertDictionary = alert as? [AnyHashable: Any] {
+            title = alertDictionary["title"] as? String ?? ""
+            subtitle = alertDictionary["subtitle"] as? String ?? ""
+            body = alertDictionary["body"] as? String ?? ""
+        } else if let alertText = alert as? String {
+            body = alertText
+        }
+
+        if title.isEmpty {
+            title = payload["title"] as? String ?? ""
+        }
+        if subtitle.isEmpty {
+            subtitle = payload["subtitle"] as? String ?? ""
+        }
+        if body.isEmpty {
+            body = payload["body"] as? String ?? ""
+        }
+
+        let immichID = payload["ImmichID"] as? String ?? payload["immichID"] as? String ?? ""
+        let yoloStatus = payload["YoloStatus"] as? String ?? payload["yoloStatus"] as? String ?? ""
+        let cameraID = payload["cameraid"] as? String ?? payload["CameraID"] as? String ?? cameraID(from: body)
+
+        return (title, subtitle, body, immichID, yoloStatus, cameraID)
+    }
+
+    func cameraID(from body: String) -> String {
+        let normalizedBody = body.replacingOccurrences(of: "Neue Sichtung ", with: "")
+        return normalizedBody
+            .split(separator: "-", maxSplits: 1)
+            .first
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) } ?? ""
+    }
 
     func clearFields() {
         notificationTitle = ""
