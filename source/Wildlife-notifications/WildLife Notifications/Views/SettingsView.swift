@@ -17,6 +17,18 @@ class PreferencesViewModel: ObservableObject {
     @AppStorage("color") var color = 0xFF3100
     @AppStorage("immichurltext") var immichurltext = ""
     @AppStorage("immichapikey") var immichapikey = ""
+    @AppStorage(WebDAVSettingsKeys.serverURL) var webDAVServerURL = ""
+    @AppStorage(WebDAVSettingsKeys.username) var webDAVUsername = ""
+    @Published var webDAVPassword: String = SecureValueStore.string(forKey: WebDAVSettingsKeys.password) ?? "" {
+        didSet {
+            SecureValueStore.set(webDAVPassword, forKey: WebDAVSettingsKeys.password)
+        }
+    }
+    @Published var webDAVPasskey: String = SecureValueStore.string(forKey: WebDAVSettingsKeys.passkey) ?? "" {
+        didSet {
+            SecureValueStore.set(webDAVPasskey, forKey: WebDAVSettingsKeys.passkey)
+        }
+    }
     @Published var showingAlert = false
 }
 
@@ -175,6 +187,21 @@ struct SettingsView: View {
                         
                     }
                     .previewIcon(icon: .system(icon: "gear", backgroundColor: Color(hex: 0x006DC1)))
+                }
+
+                SettingGroup {
+                    SettingPage(title: "Backup") {
+                        SettingGroup(
+                            header: "WebDAV",
+                            footer: "Die Server-URL muss auf einen bestehenden WebDAV-Ordner zeigen. Wenn ein Passkey/App-Passwort gesetzt ist, wird dieses statt dem Passwort verwendet."
+                        ) {
+                            SettingTextField(placeholder: "Server-URL", secure: false, text: $model.webDAVServerURL)
+                            SettingTextField(placeholder: "Benutzername", secure: false, text: $model.webDAVUsername)
+                            SettingTextField(placeholder: "Passwort", secure: true, text: $model.webDAVPassword)
+                            SettingTextField(placeholder: "Passkey / App-Passwort", secure: true, text: $model.webDAVPasskey)
+                        }
+                    }
+                    .previewIcon(icon: .system(icon: "icloud.and.arrow.up", backgroundColor: Color(hex: 0x4B6BFB)))
                 }
                 
                 SettingGroup {

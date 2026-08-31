@@ -21,7 +21,7 @@ public class RootViewModel: Identifiable  {
     var notificationImmichId: String = ""
     var notificationYoloStatus: String = ""
     var customAction: String = ""
-    var url = URL(string:  UserDefaults.standard.string(forKey: "immichurltext")!)
+    var url: URL? = URL(string: UserDefaults.standard.string(forKey: "immichurltext") ?? "")
     var duration: TimeInterval? = 0
     var draftDuration: DurationValue = .init(hours: 0, minutes: 0, seconds: 0)
 
@@ -224,16 +224,23 @@ public class RootViewModel: Identifiable  {
 
     
     func performDummyNetworkRequest() {
-        let url = URL(string: UserDefaults.standard.string(forKey: "immichurltext")!)!
-        var request = URLRequest(url: url)
+        guard let url = URL(string: UserDefaults.standard.string(forKey: "immichurltext") ?? "") else {
+            networkStatus = "🔴"
+            return
+        }
+
         let task = URLSession.shared.dataTask(with: url) { data, _, error in
             if let error {
                 print("No network, error = \(error)")
-                self.networkStatus = "🔴"
+                Task { @MainActor in
+                    self.networkStatus = "🔴"
+                }
             } else {
                 print("Network is accessible")
-                print(data)
-                self.networkStatus = "🟢"
+                print(data as Any)
+                Task { @MainActor in
+                    self.networkStatus = "🟢"
+                }
             }
         }
         task.resume()

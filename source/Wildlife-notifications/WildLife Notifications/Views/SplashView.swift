@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SplashRootView: View {
     let viewModel: RootViewModel
+    let appDelegate: AppDelegate
     @State private var showSplash = true
 
     var body: some View {
@@ -14,7 +15,7 @@ struct SplashRootView: View {
                 }
                 .transition(.opacity.combined(with: .scale(scale: 1.02)))
             } else {
-                RootView(viewModel: viewModel)
+                RootView(viewModel: viewModel, appDelegate: appDelegate)
                     .transition(.opacity)
             }
         }

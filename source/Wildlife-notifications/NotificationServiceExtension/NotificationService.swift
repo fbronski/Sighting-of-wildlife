@@ -11,6 +11,7 @@ class NotificationService: UNNotificationServiceExtension {
 
     private let appGroupId = "group.de.unicomedv.WildSichtung"
     private let badgeCountKey = "unreadSichtungNotificationCount"
+    private let sichtungViewVisibleKey = "isSichtungViewVisible"
     private lazy var sharedDefaults = UserDefaults(suiteName: appGroupId) ?? .standard
 
     override func didReceive(
@@ -54,9 +55,15 @@ class NotificationService: UNNotificationServiceExtension {
             creationDate: Date()
         ) != nil
 
-        let badgeCount = payloadBadgeCount(from: userInfo)
-            ?? bestAttemptContent.badge.map { max(0, $0.intValue) }
-            ?? (didStoreNewSichtung ? incrementStoredBadgeCount() : storedBadgeCount())
+        let badgeCount: Int
+        if isSichtungViewCurrentlyVisible() {
+            badgeCount = 0
+        } else {
+            badgeCount = payloadBadgeCount(from: userInfo)
+                ?? bestAttemptContent.badge.map { max(0, $0.intValue) }
+                ?? (didStoreNewSichtung ? incrementStoredBadgeCount() : storedBadgeCount())
+        }
+
         setStoredBadgeCount(badgeCount)
         bestAttemptContent.badge = NSNumber(value: badgeCount)
 
@@ -64,10 +71,26 @@ class NotificationService: UNNotificationServiceExtension {
     }
 
     func buildImageAttachment(_ request: UNNotificationRequest) throws {
+        guard let iid = request.content.userInfo["ImmichID"] as? String,
+              !iid.isEmpty else {
+            return
+        }
 
-        let iid = request.content.userInfo["ImmichID"] as! String
-        let url = URL(string: UserDefaults.standard.string(forKey: "immichurltext")!+"/api/assets/\(iid)/original")
-        let attachment = try UNNotificationAttachment(identifier: "", url: url!, options: nil)
+        var immichURLText = (UserDefaults.standard.string(forKey: "immichurltext") ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !immichURLText.isEmpty else {
+            return
+        }
+
+        while immichURLText.hasSuffix("/") {
+            immichURLText.removeLast()
+        }
+
+        guard let url = URL(string: "\(immichURLText)/api/assets/\(iid)/original") else {
+            return
+        }
+
+        let attachment = try UNNotificationAttachment(identifier: "", url: url, options: nil)
         bestAttemptContent?.attachments = [attachment]
     }
 
@@ -140,7 +163,12 @@ class NotificationService: UNNotificationServiceExtension {
         max(0, sharedDefaults.integer(forKey: badgeCountKey))
     }
 
+    private func isSichtungViewCurrentlyVisible() -> Bool {
+        sharedDefaults.bool(forKey: sichtungViewVisibleKey)
+    }
+
     private func setStoredBadgeCount(_ count: Int) {
         sharedDefaults.set(max(0, count), forKey: badgeCountKey)
+        sharedDefaults.synchronize()
     }
 }

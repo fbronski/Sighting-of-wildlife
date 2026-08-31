@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// A SwiftUI view that provides a visual picker for a range of time.
 ///
@@ -16,6 +17,7 @@ import SwiftUI
 public struct TimeRangePicker: View {
 
     @Environment(\.colorScheme) var colorScheme: ColorScheme
+    @AppStorage("languageIndex") private var languageIndex = 0
 
     @Binding var value: Range<TimeInterval>
     @Binding var isPresenting: Bool
@@ -77,6 +79,14 @@ public struct TimeRangePicker: View {
 
     let generator = UIImpactFeedbackGenerator(style: .medium)
 
+    private var clockMaxSide: CGFloat {
+        isPad ? 520 : .infinity
+    }
+
+    private var isPad: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
+    }
+
     private func gesture(proxy: GeometryProxy) -> some Gesture {
         SimultaneousGesture(
             LongPressGesture(minimumDuration: 0.0, maximumDistance: 5)
@@ -135,27 +145,17 @@ public struct TimeRangePicker: View {
                
                 .toolbar {
                   ToolbarItem(placement: .cancellationAction) {
-                      if #available(iOS 26.0, *) {
-                          Button(role: .cancel) {
-                              
-                              isPresenting = false
-                              isCanceled = true
-                               }
-                      } else {
-                          // Fallback on earlier versions
+                      Button(appText(.cancel, languageIndex: languageIndex), role: .cancel) {
+                          isPresenting = false
+                          isCanceled = true
                       }
                   }
                   ToolbarItem(placement: .confirmationAction) {
-                      if #available(iOS 26.0, *) {
-                          Button(role: .confirm) {
-                              isPresenting = false
-                              isCanceled = false
-                              
-                          }
-                          .foregroundStyle(.tint)
-                      } else {
-                          // Fallback on earlier versions
+                      Button(appText(.continueAction, languageIndex: languageIndex)) {
+                          isPresenting = false
+                          isCanceled = false
                       }
+                      .foregroundStyle(.tint)
                   }
                 }  // toolbar
                 
@@ -189,8 +189,10 @@ public struct TimeRangePicker: View {
                         .foregroundColor(.secondary)
                 }
             }
+            .frame(maxWidth: clockMaxSide, maxHeight: clockMaxSide)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .onChange(of: startAngle.wrappedValue) { newValue in
+        .onChange(of: startAngle.wrappedValue) { _, newValue in
             var diff = (endAngle.wrappedValue - newValue).truncatingRemainder(dividingBy: 360)
             if diff < 0 {
                 diff += 360
@@ -207,7 +209,7 @@ public struct TimeRangePicker: View {
                 }
             }
         }
-        .onChange(of: endAngle.wrappedValue) { newValue in
+        .onChange(of: endAngle.wrappedValue) { _, newValue in
             var diff = (newValue - startAngle.wrappedValue).truncatingRemainder(dividingBy: 360)
             if diff < 0 {
                 diff += 360
@@ -224,7 +226,7 @@ public struct TimeRangePicker: View {
                 }
             }
         }
-        .onChange(of: selection) { [previousValue = selection] newValue in
+        .onChange(of: selection) { previousValue, newValue in
             let startDifference = abs(newValue.start - previousValue.start)
             let endDifference = abs(newValue.end - previousValue.end)
             if startDifference >= 300 || endDifference >= 300 {
@@ -335,4 +337,3 @@ struct TimeRangePicker_Previews: PreviewProvider {
 
     }
 }
-

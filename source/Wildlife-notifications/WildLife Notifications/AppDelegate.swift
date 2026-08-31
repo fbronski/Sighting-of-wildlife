@@ -14,6 +14,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 
     private let appGroupId = "group.de.unicomedv.WildSichtung"
     private let badgeCountKey = "unreadSichtungNotificationCount"
+    private let sichtungViewVisibleKey = "isSichtungViewVisible"
     private lazy var sharedDefaults = UserDefaults(suiteName: appGroupId) ?? .standard
 
     func application(
@@ -23,6 +24,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         print("\(#function)\n\(launchOptions ?? [:])")
 
         UNUserNotificationCenter.current().delegate = self
+        sharedDefaults.set(false, forKey: sichtungViewVisibleKey)
         setBadgeNumber(storedBadgeCount())
         // Note: intialize firebase before registering to notification
         //FirebaseApp.configure()
@@ -67,8 +69,21 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     }
 
     func applicationWillEnterForeground(_ application: UIApplication) {
-        setBadgeNumber(storedBadgeCount())
+        if isSichtungViewCurrentlyVisible() {
+            resetSichtungBadgeCount()
+        } else {
+            setBadgeNumber(storedBadgeCount())
+        }
+
         print("App enters foreground")
+    }
+
+    func applicationWillResignActive(_ application: UIApplication) {
+        setSichtungViewVisible(false)
+    }
+
+    func applicationDidEnterBackground(_ application: UIApplication) {
+        setSichtungViewVisible(false)
     }
 
     func userNotificationCenter(
@@ -83,6 +98,17 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     @MainActor
     func setSichtungViewVisible(_ isVisible: Bool) {
         isSichtungViewVisible = isVisible
+        sharedDefaults.set(isVisible, forKey: sichtungViewVisibleKey)
+        sharedDefaults.synchronize()
+
+        if isVisible {
+            resetSichtungBadgeCount()
+        }
+    }
+
+    @MainActor
+    func resetSichtungBadgeCount() {
+        setBadgeNumber(0)
     }
 
     @MainActor
@@ -90,6 +116,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         let sanitizedNumber = max(0, number)
         badgeCount = sanitizedNumber
         sharedDefaults.set(sanitizedNumber, forKey: badgeCountKey)
+        sharedDefaults.synchronize()
 
         if #unavailable(iOS 17.0) {
             UIApplication.shared.applicationIconBadgeNumber = sanitizedNumber
@@ -109,6 +136,11 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         userInfo: [AnyHashable: Any],
         didStoreNewSichtung: Bool
     ) {
+        if isSichtungViewCurrentlyVisible() {
+            resetSichtungBadgeCount()
+            return
+        }
+
         if let payloadBadgeCount = payloadBadgeCount(from: userInfo) {
             setBadgeNumber(payloadBadgeCount)
             return
@@ -123,6 +155,10 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 
     private func storedBadgeCount() -> Int {
         max(0, sharedDefaults.integer(forKey: badgeCountKey))
+    }
+
+    private func isSichtungViewCurrentlyVisible() -> Bool {
+        isSichtungViewVisible || sharedDefaults.bool(forKey: sichtungViewVisibleKey)
     }
 
     private func payloadBadgeCount(from userInfo: [AnyHashable: Any]) -> Int? {
@@ -170,6 +206,10 @@ extension AppDelegate: @MainActor UNUserNotificationCenterDelegate {
         )
 
         /// return an array with element to display
+        if isSichtungViewCurrentlyVisible() {
+            return [.sound, .banner, .list]
+        }
+
         return [.sound, .banner, .badge, .list]
         /// return empty list if no UI needed for notification
         // return []

@@ -4,6 +4,7 @@
 import MessageUI
 import PhotosUI
 import SwiftUI
+import UIKit
 
 
 struct DetailCameraView: View {
@@ -25,131 +26,183 @@ struct DetailCameraView: View {
     private let willfinePhotoRequestCommand = "$03*1#1$"
     
     var body: some View {
+        Group {
+            if isPad {
+                iPadLayout
+            } else {
+                phoneLayout
+            }
+        }
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.backward.circle.fill")
+                        .tint(.black)
+                }
+                .font(.title)
+            }
 
-            VStack {
-                cameraImageSection
-               
-                
-                ScrollView {
-                    
-                    HStack {
-                        VStack(alignment: .leading) {
-                            
-                            TextField(appText(.cameraLocation, languageIndex: languageIndex), text: $camera.CameraRealName)
-                                .font(.title)
-                                .textFieldStyle(.roundedBorder)
-                                .padding()
-                            
-                            TextField(appText(.cameraName, languageIndex: languageIndex), text: $camera.CameraName)
-                                .textFieldStyle(.roundedBorder)
-                                .padding(.horizontal)
-                                .onChange(of: camera.CameraName) { _, newValue in
-                                    if newValue.count > 4 {
-                                        camera.CameraName = String(newValue.prefix(4))
-                                    }
-                                }
-                            
-                            TextField(appText(.cameraType, languageIndex: languageIndex), text: $camera.CameraType)
-                                .textFieldStyle(.roundedBorder)
-                                .padding(.horizontal)
-                                .padding(.top, 8)
-                            
-                            TextField(appText(.cameraPhoneNumber, languageIndex: languageIndex), text: $camera.PhoneNumber)
-                                .keyboardType(.phonePad)
-                                .textContentType(.telephoneNumber)
-                                .textFieldStyle(.roundedBorder)
-                                .padding(.horizontal)
-                                .padding(.top, 8)
-                                .onChange(of: camera.PhoneNumber) { _, newValue in
-                                    let formattedNumber = formattedPhoneNumber(newValue)
-                                    if formattedNumber != newValue {
-                                        camera.PhoneNumber = formattedNumber
-                                    }
-                                }
-                            
-                            Button {
-                                requestPhotoBySMS()
-                            } label: {
-                                Label(appText(.requestPhotoBySMS, languageIndex: languageIndex), systemImage: "message.fill")
-                                    .frame(maxWidth: .infinity)
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(appText(.save, languageIndex: languageIndex)) {
+                    saveCamera()
+                }
+            }
+        }
+        .alert(appText(.cameraSaveFailed, languageIndex: languageIndex), isPresented: $showSaveError) {
+            Button("OK", role: .cancel) {}
+        }
+        .alert(appText(.smsRequestUnavailable, languageIndex: languageIndex), isPresented: $showSMSUnavailableAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(smsAlertMessage)
+        }
+        .sheet(isPresented: $showSMSComposer) {
+            SMSComposerView(recipients: [normalizedSMSRecipient(camera.PhoneNumber)], body: willfinePhotoRequestCommand)
+        }
+        .confirmationDialog(appText(.cameraDeleteQuestion, languageIndex: languageIndex), isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+            Button(appText(.cameraDelete, languageIndex: languageIndex), role: .destructive) {
+                deleteCamera()
+            }
+            Button(appText(.cancel, languageIndex: languageIndex), role: .cancel) {}
+        }
+        .onChange(of: selectedPhoto) { _, newValue in
+            guard let newValue else { return }
+            Task {
+                await loadPhoto(from: newValue)
+            }
+        }
+        .refreshable {
+
+        }
+        .onAppear {
+
+
+        }
+        .onDisappear {
+
+        }
+    }
+
+    private var phoneLayout: some View {
+        VStack {
+            cameraImageSection
+            cameraFormSection
+        }
+    }
+
+    private var iPadLayout: some View {
+        GeometryReader { geometry in
+            if geometry.size.width > geometry.size.height {
+                HStack(alignment: .top, spacing: 24) {
+                    cameraImageSection
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                    cameraFormSection
+                        .frame(width: detailPanelWidth(for: geometry.size.width))
+                        .frame(maxHeight: .infinity)
+                        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .padding(24)
+            } else {
+                VStack(spacing: 16) {
+                    cameraImageSection
+                        .frame(height: portraitImageHeight(for: geometry.size.height))
+                        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                    cameraFormSection
+                        .frame(maxWidth: 640)
+                        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 16)
+            }
+        }
+        .background(Color(.systemBackground))
+    }
+
+    private var cameraFormSection: some View {
+        ScrollView {
+            HStack {
+                VStack(alignment: .leading) {
+                    TextField(appText(.cameraLocation, languageIndex: languageIndex), text: $camera.CameraRealName)
+                        .font(.title)
+                        .textFieldStyle(.roundedBorder)
+                        .padding()
+
+                    TextField(appText(.cameraName, languageIndex: languageIndex), text: $camera.CameraName)
+                        .textFieldStyle(.roundedBorder)
+                        .padding(.horizontal)
+                        .onChange(of: camera.CameraName) { _, newValue in
+                            if newValue.count > 4 {
+                                camera.CameraName = String(newValue.prefix(4))
                             }
-                            .buttonStyle(.bordered)
-                            .padding(.horizontal)
-                            .padding(.top, 8)
-                            
-                            Text(camera.creationDate.formattedString(dateFormat: "yyyy-MM-dd’T’HH:mm:ss"))
-                                .foregroundColor(.secondary)
-                                .padding()
-                            
-                            Button(role: .destructive) {
-                                showDeleteConfirmation = true
-                            } label: {
-                                Label(appText(.cameraDelete, languageIndex: languageIndex), systemImage: "trash")
-                                    .frame(maxWidth: .infinity)
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .padding(.horizontal)
-                            .padding(.top, 12)
-                            
-                            Spacer()
                         }
-                        
-                        Spacer()
-                    }
-                }
-            }
-            .navigationBarBackButtonHidden(true)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+
+                    TextField(appText(.cameraType, languageIndex: languageIndex), text: $camera.CameraType)
+                        .textFieldStyle(.roundedBorder)
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+
+                    TextField(appText(.cameraPhoneNumber, languageIndex: languageIndex), text: $camera.PhoneNumber)
+                        .keyboardType(.phonePad)
+                        .textContentType(.telephoneNumber)
+                        .textFieldStyle(.roundedBorder)
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                        .onChange(of: camera.PhoneNumber) { _, newValue in
+                            let formattedNumber = formattedPhoneNumber(newValue)
+                            if formattedNumber != newValue {
+                                camera.PhoneNumber = formattedNumber
+                            }
+                        }
+
                     Button {
-                        dismiss()
+                        requestPhotoBySMS()
                     } label: {
-                        Image(systemName: "chevron.backward.circle.fill")
-                            .tint(.black)
+                        Label(appText(.requestPhotoBySMS, languageIndex: languageIndex), systemImage: "message.fill")
+                            .frame(maxWidth: .infinity)
                     }
-                    .font(.title)
-                }
-                
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(appText(.save, languageIndex: languageIndex)) {
-                        saveCamera()
+                    .buttonStyle(.bordered)
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+
+                    Text(camera.creationDate.formattedString(dateFormat: "yyyy-MM-dd’T’HH:mm:ss"))
+                        .foregroundColor(.secondary)
+                        .padding()
+
+                    Button(role: .destructive) {
+                        showDeleteConfirmation = true
+                    } label: {
+                        Label(appText(.cameraDelete, languageIndex: languageIndex), systemImage: "trash")
+                            .frame(maxWidth: .infinity)
                     }
+                    .buttonStyle(.borderedProminent)
+                    .padding(.horizontal)
+                    .padding(.top, 12)
+
+                    Spacer()
                 }
-                
+
+                Spacer()
             }
-            .alert(appText(.cameraSaveFailed, languageIndex: languageIndex), isPresented: $showSaveError) {
-                Button("OK", role: .cancel) {}
-            }
-            .alert(appText(.smsRequestUnavailable, languageIndex: languageIndex), isPresented: $showSMSUnavailableAlert) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(smsAlertMessage)
-            }
-            .sheet(isPresented: $showSMSComposer) {
-                SMSComposerView(recipients: [normalizedSMSRecipient(camera.PhoneNumber)], body: willfinePhotoRequestCommand)
-            }
-            .confirmationDialog(appText(.cameraDeleteQuestion, languageIndex: languageIndex), isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
-                Button(appText(.cameraDelete, languageIndex: languageIndex), role: .destructive) {
-                    deleteCamera()
-                }
-                Button(appText(.cancel, languageIndex: languageIndex), role: .cancel) {}
-            }
-            .onChange(of: selectedPhoto) { _, newValue in
-                guard let newValue else { return }
-                Task {
-                    await loadPhoto(from: newValue)
-                }
-            }
-            .refreshable {
-                
-            }
-            .onAppear {
-                
- 
-            }
-            .onDisappear {
-                
-            }
+        }
+    }
+
+    private func detailPanelWidth(for width: CGFloat) -> CGFloat {
+        min(420, max(320, width * 0.36))
+    }
+
+    private func portraitImageHeight(for height: CGFloat) -> CGFloat {
+        min(max(height * 0.42, 320), 520)
+    }
+
+    private var isPad: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
     }
     
     private var cameraImageSection: some View {

@@ -2,6 +2,7 @@
 // 20.07.2026
 
 import SwiftUI
+import UIKit
 
 enum ActiveAlert {
     case first, second, third
@@ -35,6 +36,20 @@ private struct SichtungGridRow: Identifiable {
     let items: [Wildsichtung]
 }
 
+private struct BackupOperationProgress: Equatable {
+    let title: String
+    let message: String
+    let progress: Double
+
+    var clampedProgress: Double {
+        min(max(progress, 0), 1)
+    }
+
+    var percentText: String {
+        "\(Int((clampedProgress * 100).rounded()))%"
+    }
+}
+
 struct SichtungView: View {
    
     @State var viewModel: RootViewModel
@@ -45,6 +60,7 @@ struct SichtungView: View {
     @State var timeRange: Range<TimeInterval> = 28800..<36000 // 08:00 - 10:00
     @State private var showTimeSheet = false
     @State private var showDateDeleteSheet = false
+    @State private var showStatisticsSheet = false
     @State private var isCanceled = false
     @State private var deleteDateMode: DateDeletionMode = .day
     @State private var deleteReferenceDate = Date()
@@ -56,10 +72,24 @@ struct SichtungView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var isSichtungViewActive = false
     @State private var searchText = ""
+    @State private var navigationPath = NavigationPath()
     
     // Add automatic refresh timer
     @State private var refreshTimer: Task<Void, Never>? = nil
     @State private var isRefreshing = false
+    @State private var isBackupOperationRunning = false
+    @State private var backupProgress = BackupOperationProgress(
+        title: "Backup",
+        message: "Backup wird vorbereitet",
+        progress: 0
+    )
+    @State private var backupAlertTitle = "Backup"
+    @State private var backupAlertMessage = ""
+    @State private var showBackupAlert = false
+    @State private var backupImportCandidates: [WebDAVBackupFile] = []
+    @State private var showBackupImportPicker = false
+    @State private var pendingBackupImport: WebDAVBackupFile?
+    @State private var showBackupImportConfirmation = false
     @State private var dateMarkers: [SichtungDateMarker] = []
     @State private var dateBadgeLocation: CGPoint?
     @State private var dateBadgeText = ""
@@ -69,7 +99,8 @@ struct SichtungView: View {
     @State private var showFastScrollHint = false
     @AppStorage("hasSeenSichtungFastScrollHint") private var hasSeenFastScrollHint = false
     @AppStorage("languageIndex") private var languageIndex = 0
-    @AppStorage("sichtungGridColumnCount") private var gridColumnCount = 1
+    @AppStorage("sichtungGridColumnCount") private var phoneGridColumnCount = 1
+    @AppStorage("sichtungPadGridColumnCount") private var padGridColumnCount = 2
     
     private static let scrollDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -89,11 +120,39 @@ struct SichtungView: View {
     private let gridColumnOptions = [1, 2, 4, 8]
 
     private var effectiveGridColumnCount: Int {
-        gridColumnOptions.contains(gridColumnCount) ? gridColumnCount : 1
+        gridColumnOptions.contains(selectedGridColumnCount) ? selectedGridColumnCount : defaultGridColumnCount
+    }
+
+    private var selectedGridColumnCount: Int {
+        isPad ? padGridColumnCount : phoneGridColumnCount
+    }
+
+    private var gridColumnCountBinding: Binding<Int> {
+        Binding {
+            selectedGridColumnCount
+        } set: { newValue in
+            if isPad {
+                padGridColumnCount = newValue
+            } else {
+                phoneGridColumnCount = newValue
+            }
+        }
+    }
+
+    private var defaultGridColumnCount: Int {
+        isPad ? 2 : 1
+    }
+
+    private var isPad: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
     }
 
     private var gridSpacing: CGFloat {
         effectiveGridColumnCount == 1 ? 12 : 8
+    }
+
+    private var gridHorizontalPadding: CGFloat {
+        effectiveGridColumnCount == 1 ? 12 : 14
     }
 
     private var listBackgroundColor: Color {
@@ -105,59 +164,24 @@ struct SichtungView: View {
     }
     
     var body: some View {
-        NavigationStack {
-            if #available(iOS 26.0, *) {
+        NavigationStack(path: $navigationPath) {
+            GeometryReader { geometry in
                 ScrollViewReader { scrollProxy in
-                List {
-                    Color.clear
-                        .frame(height: 0)
-                        .id(topListID)
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(listBackgroundColor)
-
-                    ForEach(groupedSearchResults) { row in
-                        HStack(alignment: .top, spacing: gridSpacing) {
-                            ForEach(row.items) { item in
-                                sichtungCardCell(item)
-                                    .frame(maxWidth: .infinity, alignment: .top)
-                            }
-
-                            ForEach(0..<emptyGridSlots(for: row), id: \.self) { _ in
-                                Color.clear
-                                    .frame(maxWidth: .infinity)
-                            }
-                        }
-                        .padding(.horizontal, gridSpacing)
-                        .padding(.vertical, gridSpacing / 2)
-                        .background {
-                            if let markerItem = row.items.first {
-                                GeometryReader { proxy in
-                                    Color.clear.preference(
-                                        key: SichtungDateMarkerPreferenceKey.self,
-                                        value: [
-                                            SichtungDateMarker(
-                                                id: markerItem.id,
-                                                frame: proxy.frame(in: .named("SichtungScroll")),
-                                                date: markerItem.creationDate
-                                            )
-                                        ]
-                                    )
-                                }
-                            }
-                        }
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(listBackgroundColor)
-                    }
-                    
-                }
+                sichtungContent(availableWidth: geometry.size.width)
                 .scrollContentBackground(.hidden)
+                .contentMargins(.horizontal, 0, for: .scrollContent)
                 .background(listBackgroundColor)
                 .navigationTitle(t(.wildSightings))
+                .navigationDestination(for: Int64.self) { itemID in
+                    if let item = sichtung(for: itemID) {
+                        DetailView(wildsichtung: item)
+                    } else {
+                        Text(t(.wildSightings))
+                    }
+                }
                 .toolbar {
                     ToolbarItem(placement: .navigationBarLeading) {
-                        Picker("Spalten", selection: $gridColumnCount) {
+                        Picker("Spalten", selection: gridColumnCountBinding) {
                             ForEach(gridColumnOptions, id: \.self) { count in
                                 Text("\(count)").tag(count)
                             }
@@ -167,72 +191,97 @@ struct SichtungView: View {
                         .accessibilityLabel("Spalten")
                     }
 
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Menu("...") {
-                            Button(t(.topOfList), systemImage: "arrow.up.to.line") {
+                    if isPad {
+                        ToolbarItemGroup(placement: .navigationBarTrailing) {
+                            Button {
                                 scrollToTop(using: scrollProxy)
+                            } label: {
+                                Image(systemName: "arrow.up.to.line")
                             }
-                            
-                            Button(t(.refreshView), systemImage: "arrow.trianglehead.clockwise.rotate.90", action: { print("Refreh selected")
-                                
-                                Task {
-                                    isRefreshing = true
-                                    viewModel.sichtungen = DatabaseManager.shared.getAllSichtungen()
-                                    isRefreshing = false
-                                }
-                                
-                            })
-                            Button(t(.updateAll), systemImage: "arrow.trianglehead.2.clockwise.rotate.90", action: { print("Update All without Image")
-                                
-                                Task {
-                                    isRefreshing = true
-                                    viewModel.sichtungen = DatabaseManager.shared.getAllSichtungen()
-                                    await updateAll()
-                                    isRefreshing = false
-                                }
-                                
-                            })
-                            Button(t(.unpinnedDelete),systemImage: "arrow.up.trash", action: { print("Unpinned löschen")
-   	         	 	     
-      	    	        
-                                DatabaseManager.shared.deleteAllUnPinned()
-                                
-                                Task {
-                                    isRefreshing = true
-                                    await viewModel.fetchSichtungen()
-                                    isRefreshing = false
-                                }
-                                
-                            })
-                           
-                            Button("\(t(.delete)) \(viewModel.draftDuration.timeString)",systemImage: "timeline.selection", action: { print("Immich löschen")
-   	         	 	     
-  	     	 	     
-                                showTimeSheet.toggle()
-   	   	  	    	 
-      	    	   	     
-                               })
-                            Button(t(.dateDelete), systemImage: "calendar.badge.minus") {
-                                showDateDeleteSheet = true
+                            .accessibilityLabel(t(.topOfList))
+
+                            Button {
+                                refreshSichtungenFromDatabase()
+                            } label: {
+                                Image(systemName: "arrow.trianglehead.clockwise.rotate.90")
                             }
-                            Button(t(.databaseDelete),systemImage: "document.on.trash", action: { print("Datenbank löschen")
-                                
-                                if(DatabaseManager.shared.IsAnyNotifyPinned()) {
-                                    self.activeAlert = .first
-                                    showAlert = true
-                                }else{
-                                    showAlert = false
-                                    DatabaseManager.shared.deleteAndCreateNew()
+                            .disabled(isRefreshing)
+                            .accessibilityLabel(t(.refreshView))
+
+                            Button {
+                                updateAllSichtungen()
+                            } label: {
+                                Image(systemName: "arrow.trianglehead.2.clockwise.rotate.90")
+                            }
+                            .disabled(isRefreshing)
+                            .accessibilityLabel(t(.updateAll))
+                        }
+                    }
+
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Menu {
+                            if !isPad {
+                                Button(t(.topOfList), systemImage: "arrow.up.to.line") {
+                                    scrollToTop(using: scrollProxy)
                                 }
-   	   	      	    	 
-      	    	   	     
-                                Task {
-                                    isRefreshing = true
-                                    await viewModel.fetchSichtungen()
-                                    isRefreshing = false
+
+                                Button(t(.refreshView), systemImage: "arrow.trianglehead.clockwise.rotate.90") {
+                                    refreshSichtungenFromDatabase()
                                 }
-                                
-                            })
+                                .disabled(isRefreshing)
+
+                                Button(t(.updateAll), systemImage: "arrow.trianglehead.2.clockwise.rotate.90") {
+                                    updateAllSichtungen()
+                                }
+                                .disabled(isRefreshing)
+
+                                Divider()
+                            }
+
+                            Button("Statistik", systemImage: "chart.bar.xaxis") {
+                                showStatisticsSheet = true
+                            }
+
+                            Menu {
+                                Button("Backup exportieren", systemImage: "icloud.and.arrow.up") {
+                                    Task {
+                                        await exportBackupToWebDAV()
+                                    }
+                                }
+                                .disabled(isBackupOperationRunning)
+
+                                Button("Backup importieren", systemImage: "icloud.and.arrow.down") {
+                                    Task {
+                                        await loadBackupsForImport()
+                                    }
+                                }
+                                .disabled(isBackupOperationRunning)
+                            } label: {
+                                Label("Backup", systemImage: "externaldrive.badge.icloud")
+                            }
+
+                            Menu {
+                                Button(t(.unpinnedDelete), systemImage: "arrow.up.trash") {
+                                    deleteUnpinnedSichtungen()
+                                }
+
+                                Button("\(t(.delete)) \(viewModel.draftDuration.timeString)", systemImage: "timeline.selection") {
+                                    print("Immich löschen")
+                                    showTimeSheet.toggle()
+                                }
+
+                                Button(t(.dateDelete), systemImage: "calendar.badge.minus") {
+                                    showDateDeleteSheet = true
+                                }
+
+                                Button(t(.databaseDelete), systemImage: "document.on.trash") {
+                                    requestDatabaseDeletion()
+                                }
+                            } label: {
+                                Label("Löschen", systemImage: "trash")
+                            }
+                        } label: {
+                            Label("Mehr", systemImage: "ellipsis.circle")
                         }
                     }
                 }
@@ -245,16 +294,18 @@ struct SichtungView: View {
                 .simultaneousGesture(
                     DragGesture(minimumDistance: 8, coordinateSpace: .named("SichtungScroll"))
                         .onChanged { value in
+                            guard showsDateScrollControls else { return }
                             updateDateBadge(at: value.location)
                         }
                         .onEnded { _ in
+                            guard showsDateScrollControls else { return }
                             withAnimation(.easeOut(duration: 0.15)) {
                                 dateBadgeLocation = nil
                             }
                         }
                 )
                 .overlay(alignment: .topLeading) {
-                    if let dateBadgeLocation {
+                    if let dateBadgeLocation, showsDateScrollControls {
                         SichtungScrollPositionBadge(text: dateBadgeText, progress: scrollPositionProgress)
                             .position(x: dateBadgeX(for: dateBadgeLocation.x), y: dateBadgeLocation.y)
                             .transition(.opacity.combined(with: .scale(scale: 0.95)))
@@ -262,7 +313,7 @@ struct SichtungView: View {
                     }
                 }
                 .overlay(alignment: .trailing) {
-                    if showScrollToTopButton {
+                    if showScrollToTopButton && showsDateScrollControls {
                         GeometryReader { proxy in
                             FastScrollHandle(isActive: isFastScrollHandleActive)
                                 .frame(width: 72, height: proxy.size.height)
@@ -315,13 +366,26 @@ struct SichtungView: View {
                         .transition(.opacity.combined(with: .scale(scale: 0.9)))
                     }
                 }
+                .overlay {
+                    if isBackupOperationRunning {
+                        BackupProgressOverlay(progress: backupProgress)
+                            .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                            .allowsHitTesting(true)
+                    }
+                }
+                .animation(.easeInOut(duration: 0.18), value: isBackupOperationRunning)
+                .animation(.easeInOut(duration: 0.18), value: backupProgress)
                 .refreshable {
                     Task {
                         isRefreshing = true
-                        await viewModel.fetchSichtungen()
+                        viewModel.fetchSichtungen()
                         isRefreshing = false
                     }
-                }.sheet(isPresented: $showTimeSheet,
+                }
+                .sheet(isPresented: $showStatisticsSheet) {
+                    StatisticsSheetView()
+                }
+                .sheet(isPresented: $showTimeSheet,
                         onDismiss: {
                     self.activeAlert = .second
                     if(isCanceled == true){
@@ -401,13 +465,41 @@ struct SichtungView: View {
                         )
                     }
                 })
+                .confirmationDialog("Backup importieren", isPresented: $showBackupImportPicker, titleVisibility: .visible) {
+                    ForEach(backupImportCandidates) { backup in
+                        Button(backup.displayName) {
+                            pendingBackupImport = backup
+                            showBackupImportConfirmation = true
+                        }
+                    }
+
+                    Button(t(.cancel), role: .cancel) {}
+                } message: {
+                    Text("Wähle ein WebDAV-Backup aus. Der Import ersetzt nach weiterer Bestätigung die lokale Datenbank auf diesem Gerät.")
                 }
-                
-            } else {
-                // Fallback on earlier versions
+                .alert("Lokale Daten überschreiben?", isPresented: $showBackupImportConfirmation, presenting: pendingBackupImport) { backup in
+                    Button("Importieren", role: .destructive) {
+                        Task {
+                            await importBackupFromWebDAV(backup)
+                        }
+                    }
+
+                    Button(t(.cancel), role: .cancel) {
+                        pendingBackupImport = nil
+                    }
+                } message: { backup in
+                    Text("Das Backup \(backup.name) ersetzt die aktuelle lokale WildSichtung-Datenbank. Vor dem Ersetzen wird automatisch eine Sicherheitskopie erstellt.")
+                }
+                .alert(backupAlertTitle, isPresented: $showBackupAlert) {
+                    Button("OK", role: .cancel) {}
+                } message: {
+                    Text(backupAlertMessage)
+                }
             }
+        }
+    }
                    
-        }.searchable(text: $searchText)
+        .searchable(text: $searchText)
         .onAppear {
             // Start automatic refresh when view appears
             isSichtungViewActive = true
@@ -424,6 +516,11 @@ struct SichtungView: View {
                 setSichtungViewBadgeResetActive(false)
             }
         }
+        .onChange(of: selectedGridColumnCount) {
+            if !showsDateScrollControls {
+                resetDateScrollControls()
+            }
+        }
         .onDisappear {
             // Stop timer when view disappears
             isSichtungViewActive = false
@@ -435,19 +532,418 @@ struct SichtungView: View {
     private func setSichtungViewBadgeResetActive(_ isActive: Bool) {
         if let appDelegate = UIApplication.shared.delegate as? AppDelegate {
             appDelegate.setSichtungViewVisible(isActive)
+
+            if isActive {
+                appDelegate.resetSichtungBadgeCount()
+            }
+        }
+    }
+
+    private func refreshSichtungenFromDatabase() {
+        print("Refreh selected")
+
+        Task {
+            isRefreshing = true
+            viewModel.sichtungen = DatabaseManager.shared.getAllSichtungen()
+            isRefreshing = false
+        }
+    }
+
+    private func updateAllSichtungen() {
+        print("Update All without Image")
+
+        Task {
+            isRefreshing = true
+            viewModel.sichtungen = DatabaseManager.shared.getAllSichtungen()
+            await updateAll()
+            isRefreshing = false
+        }
+    }
+
+    private func deleteUnpinnedSichtungen() {
+        print("Unpinned löschen")
+        DatabaseManager.shared.deleteAllUnPinned()
+
+        Task {
+            isRefreshing = true
+            viewModel.fetchSichtungen()
+            isRefreshing = false
+        }
+    }
+
+    private func requestDatabaseDeletion() {
+        print("Datenbank löschen")
+
+        if DatabaseManager.shared.IsAnyNotifyPinned() {
+            activeAlert = .first
+            showAlert = true
+        } else {
+            showAlert = false
+            DatabaseManager.shared.deleteAndCreateNew()
+        }
+
+        Task {
+            isRefreshing = true
+            viewModel.fetchSichtungen()
+            isRefreshing = false
+        }
+    }
+
+    private func exportBackupToWebDAV() async {
+        guard !isBackupOperationRunning else { return }
+        isBackupOperationRunning = true
+        startBackupProgress(title: "Backup exportieren", message: "WebDAV-Einstellungen werden geprüft")
+        defer {
+            isBackupOperationRunning = false
+        }
+
+        do {
+            updateBackupProgress(progress: 0.08, message: "WebDAV-Verbindung wird vorbereitet")
+            let client = try WebDAVBackupClient(configuration: WebDAVConfiguration.current())
+
+            updateBackupProgress(progress: 0.18, message: "Lokale Datenbank wird gesichert")
+            let backupURL = try DatabaseManager.shared.makeBackupFile()
+            defer {
+                try? fileManager.removeItem(at: backupURL)
+            }
+
+            updateBackupProgress(progress: 0.34, message: "Backup-Datei wird hochgeladen")
+            let remoteURL = try await client.uploadBackup(from: backupURL) { progress in
+                Task { @MainActor in
+                    updateBackupProgress(
+                        progress: 0.34 + (progress * 0.58),
+                        message: "Backup-Datei wird hochgeladen"
+                    )
+                }
+            }
+            await completeBackupProgress(message: "Export abgeschlossen")
+            showBackupMessage(
+                title: "Backup exportiert",
+                message: "Das Backup wurde nach WebDAV hochgeladen:\n\(remoteURL.lastPathComponent)"
+            )
+        } catch {
+            updateBackupProgress(progress: backupProgress.clampedProgress, message: "Export wurde abgebrochen")
+            showBackupMessage(
+                title: "Backup Export fehlgeschlagen",
+                message: error.localizedDescription
+            )
+        }
+    }
+
+    private func loadBackupsForImport() async {
+        guard !isBackupOperationRunning else { return }
+        isBackupOperationRunning = true
+        startBackupProgress(title: "Backup importieren", message: "WebDAV-Einstellungen werden geprüft")
+        defer {
+            isBackupOperationRunning = false
+        }
+
+        do {
+            updateBackupProgress(progress: 0.18, message: "WebDAV-Verbindung wird vorbereitet")
+            let client = try WebDAVBackupClient(configuration: WebDAVConfiguration.current())
+
+            updateBackupProgress(progress: 0.42, message: "Backup-Liste wird geladen")
+            let backups = try await client.listBackups()
+            guard !backups.isEmpty else {
+                await completeBackupProgress(message: "Keine Backups gefunden")
+                showBackupMessage(
+                    title: "Kein Backup gefunden",
+                    message: "Im WebDAV-Ordner wurden keine .wildsichtungbackup-Dateien gefunden."
+                )
+                return
+            }
+
+            updateBackupProgress(progress: 0.88, message: "Backup-Liste wird vorbereitet")
+            backupImportCandidates = backups
+            await completeBackupProgress(message: "Backups geladen")
+            showBackupImportPicker = true
+        } catch {
+            updateBackupProgress(progress: backupProgress.clampedProgress, message: "Import-Vorbereitung wurde abgebrochen")
+            showBackupMessage(
+                title: "Backup Import fehlgeschlagen",
+                message: error.localizedDescription
+            )
+        }
+    }
+
+    private func importBackupFromWebDAV(_ backup: WebDAVBackupFile) async {
+        guard !isBackupOperationRunning else { return }
+        isBackupOperationRunning = true
+        startBackupProgress(title: "Backup importieren", message: "Download wird vorbereitet")
+        defer {
+            isBackupOperationRunning = false
+            pendingBackupImport = nil
+        }
+
+        do {
+            updateBackupProgress(progress: 0.08, message: "WebDAV-Verbindung wird vorbereitet")
+            let client = try WebDAVBackupClient(configuration: WebDAVConfiguration.current())
+
+            updateBackupProgress(progress: 0.14, message: "Backup wird heruntergeladen")
+            let localBackupURL = try await client.downloadBackup(backup) { progress in
+                Task { @MainActor in
+                    updateBackupProgress(
+                        progress: 0.14 + (progress * 0.46),
+                        message: "Backup wird heruntergeladen"
+                    )
+                }
+            }
+            defer {
+                try? fileManager.removeItem(at: localBackupURL)
+            }
+
+            try DatabaseManager.shared.replaceDatabase(withBackupAt: localBackupURL) { progress, message in
+                updateBackupProgress(progress: progress, message: message)
+            }
+            updateBackupProgress(progress: 0.96, message: "Sichtungen werden neu geladen")
+            viewModel.fetchSichtungen()
+
+            await completeBackupProgress(message: "Import abgeschlossen")
+            showBackupMessage(
+                title: "Backup importiert",
+                message: "Die lokale Datenbank wurde durch \(backup.name) ersetzt."
+            )
+        } catch {
+            updateBackupProgress(progress: backupProgress.clampedProgress, message: "Import wurde abgebrochen")
+            showBackupMessage(
+                title: "Backup Import fehlgeschlagen",
+                message: error.localizedDescription
+            )
+        }
+    }
+
+    private func startBackupProgress(title: String, message: String) {
+        backupProgress = BackupOperationProgress(title: title, message: message, progress: 0)
+    }
+
+    private func updateBackupProgress(progress: Double, message: String) {
+        backupProgress = BackupOperationProgress(title: backupProgress.title, message: message, progress: progress)
+    }
+
+    private func completeBackupProgress(message: String) async {
+        updateBackupProgress(progress: 1, message: message)
+        try? await Task.sleep(nanoseconds: 350_000_000)
+    }
+
+    private func showBackupMessage(title: String, message: String) {
+        backupAlertTitle = title
+        backupAlertMessage = message
+        showBackupAlert = true
+    }
+
+    private var shouldScrollGridRowsHorizontally: Bool {
+        effectiveGridColumnCount > 2
+    }
+
+    private var showsDateScrollControls: Bool {
+        effectiveGridColumnCount <= 2
+    }
+
+    private var minimumScrollableCardWidth: CGFloat {
+        effectiveGridColumnCount == 4 ? 118 : 82
+    }
+
+    private func scrollableGridCardWidth(availableWidth: CGFloat) -> CGFloat {
+        let columnCount = CGFloat(effectiveGridColumnCount)
+        let contentWidth = max(availableWidth - (gridHorizontalPadding * 2), 1)
+        let totalSpacing = CGFloat(max(effectiveGridColumnCount - 1, 0)) * gridSpacing
+        let fittedWidth = max((contentWidth - totalSpacing) / columnCount, 1)
+
+        return max(fittedWidth, minimumScrollableCardWidth)
+    }
+
+    private var scrollableGridRowMinHeight: CGFloat {
+        effectiveGridColumnCount == 4 ? 166 : 88
+    }
+
+    @ViewBuilder
+    private func sichtungContent(availableWidth: CGFloat) -> some View {
+        if effectiveGridColumnCount == 1 {
+            sichtungListContent(availableWidth: availableWidth)
+        } else {
+            sichtungLazyGridContent(availableWidth: availableWidth)
+        }
+    }
+
+    private func sichtungListContent(availableWidth: CGFloat) -> some View {
+        List {
+            Color.clear
+                .frame(height: 0)
+                .id(topListID)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(listBackgroundColor)
+
+            ForEach(groupedSearchResults) { row in
+                sichtungGridRow(row, availableWidth: availableWidth)
+                    .padding(.vertical, gridSpacing / 2)
+                    .background {
+                        if let markerItem = row.items.first {
+                            sichtungDateMarker(for: markerItem)
+                        }
+                    }
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(listBackgroundColor)
+            }
+        }
+    }
+
+    private func sichtungLazyGridContent(availableWidth: CGFloat) -> some View {
+        let scrollAxes: Axis.Set = shouldScrollGridRowsHorizontally ? [.vertical, .horizontal] : .vertical
+
+        return ScrollView(scrollAxes, showsIndicators: false) {
+            VStack(spacing: 0) {
+                Color.clear
+                    .frame(height: 0)
+                    .id(topListID)
+
+                LazyVGrid(
+                    columns: lazyGridColumns(availableWidth: availableWidth),
+                    alignment: .leading,
+                    spacing: gridSpacing
+                ) {
+                    ForEach(searchResults) { item in
+                        sichtungCardCell(item)
+                            .frame(maxWidth: .infinity, alignment: .top)
+                            .contentShape(Rectangle())
+                            .id(sichtungCardIdentity(for: item))
+                            .contextMenu {
+                                sichtungContextMenu(for: item)
+                            } preview: {
+                                sichtungContextPreview(for: item)
+                            }
+                            .background {
+                                sichtungDateMarker(for: item)
+                            }
+                    }
+                }
+                .padding(.horizontal, gridHorizontalPadding)
+                .padding(.vertical, gridSpacing / 2)
+                .frame(width: lazyGridContentWidth(availableWidth: availableWidth), alignment: .topLeading)
+            }
+            .frame(maxWidth: shouldScrollGridRowsHorizontally ? nil : .infinity, alignment: .topLeading)
+        }
+    }
+
+    private func lazyGridColumns(availableWidth: CGFloat) -> [GridItem] {
+        if shouldScrollGridRowsHorizontally {
+            let cardWidth = scrollableGridCardWidth(availableWidth: availableWidth)
+            return Array(
+                repeating: GridItem(.fixed(cardWidth), spacing: gridSpacing, alignment: .top),
+                count: effectiveGridColumnCount
+            )
+        }
+
+        return Array(
+            repeating: GridItem(.flexible(minimum: 1), spacing: gridSpacing, alignment: .top),
+            count: effectiveGridColumnCount
+        )
+    }
+
+    private func lazyGridContentWidth(availableWidth: CGFloat) -> CGFloat? {
+        guard shouldScrollGridRowsHorizontally else {
+            return nil
+        }
+
+        let cardWidth = scrollableGridCardWidth(availableWidth: availableWidth)
+        let totalSpacing = CGFloat(max(effectiveGridColumnCount - 1, 0)) * gridSpacing
+        let calculatedWidth = (CGFloat(effectiveGridColumnCount) * cardWidth) + totalSpacing + (gridHorizontalPadding * 2)
+        return max(availableWidth, calculatedWidth)
+    }
+
+    private func sichtungDateMarker(for item: Wildsichtung) -> some View {
+        GeometryReader { proxy in
+            Color.clear.preference(
+                key: SichtungDateMarkerPreferenceKey.self,
+                value: [
+                    SichtungDateMarker(
+                        id: item.id,
+                        frame: proxy.frame(in: .named("SichtungScroll")),
+                        date: item.creationDate
+                    )
+                ]
+            )
         }
     }
 
     @ViewBuilder
-    private func sichtungCardCell(_ item: Wildsichtung) -> some View {
-        NavigationLink(destination: DetailView(wildsichtung: item)) {
-            CardView(wildsichtung: item, isPinned: item.pinned, columnCount: effectiveGridColumnCount)
-                .contextMenu {
-                    sichtungContextMenu(for: item)
+    private func sichtungGridRow(_ row: SichtungGridRow, availableWidth: CGFloat) -> some View {
+        if shouldScrollGridRowsHorizontally {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: gridSpacing) {
+                    ForEach(row.items) { item in
+                        sichtungCardCell(item)
+                            .frame(width: scrollableGridCardWidth(availableWidth: availableWidth), alignment: .top)
+                            .contentShape(Rectangle())
+                            .id(sichtungCardIdentity(for: item))
+                            .contextMenu {
+                                sichtungContextMenu(for: item)
+                            } preview: {
+                                sichtungContextPreview(for: item)
+                            }
+                            .clipped()
+                    }
                 }
+                .padding(.horizontal, gridHorizontalPadding)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(minHeight: scrollableGridRowMinHeight, alignment: .top)
+        } else if effectiveGridColumnCount == 1 {
+            sichtungFittingGridRow(row)
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    if let item = row.items.first {
+                        Button(role: .destructive) {
+                            deleteItem(item)
+                        } label: {
+                            Label(t(.delete), systemImage: "trash")
+                        }
+                    }
+                }
+        } else {
+            sichtungFittingGridRow(row)
         }
-        .buttonStyle(.plain)
-        .id(item.id)
+    }
+
+    private func sichtungFittingGridRow(_ row: SichtungGridRow) -> some View {
+        HStack(alignment: .top, spacing: gridSpacing) {
+            ForEach(row.items) { item in
+                sichtungCardCell(item)
+                    .frame(maxWidth: .infinity, alignment: .top)
+                    .contentShape(Rectangle())
+                    .id(sichtungCardIdentity(for: item))
+                    .contextMenu {
+                        sichtungContextMenu(for: item)
+                    } preview: {
+                        sichtungContextPreview(for: item)
+                    }
+            }
+
+            ForEach(0..<emptyGridSlots(for: row), id: \.self) { _ in
+                Color.clear
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .padding(.horizontal, gridHorizontalPadding)
+    }
+
+    @ViewBuilder
+    private func sichtungCardCell(_ item: Wildsichtung) -> some View {
+        CardView(
+            wildsichtung: item,
+            isPinned: item.pinned,
+            columnCount: effectiveGridColumnCount,
+            onOpen: {
+                navigationPath.append(item.id)
+            },
+            onPinnedChange: { isPinned in
+                setPinned(isPinned, for: item.id)
+            }
+        )
+    }
+
+    private func sichtungCardIdentity(for item: Wildsichtung) -> String {
+        "\(item.id)-\(item.immichid)-\(effectiveGridColumnCount)"
     }
 
     @ViewBuilder
@@ -501,14 +997,60 @@ struct SichtungView: View {
         }
     }
 
+    @ViewBuilder
+    private func sichtungContextPreview(for item: Wildsichtung) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if let uiImage = uiImage(for: item) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 280, height: 180)
+                    .clipped()
+            } else {
+                ZStack {
+                    Color(.secondarySystemBackground)
+                    Image(systemName: "photo")
+                        .font(.largeTitle)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(width: 280, height: 180)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.title)
+                    .font(.headline)
+                    .lineLimit(2)
+
+                if !item.yolostatus.isEmpty {
+                    Text(item.yolostatus)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
+            .padding(10)
+            .frame(width: 280, alignment: .leading)
+            .background(Color(.systemBackground))
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
     private func shareImage(for item: Wildsichtung) -> Image? {
+        guard let uiImage = uiImage(for: item) else {
+            return nil
+        }
+
+        return Image(uiImage: uiImage)
+    }
+
+    private func uiImage(for item: Wildsichtung) -> UIImage? {
         guard !item.imagebase64.isEmpty,
               let data = Data(base64Encoded: item.imagebase64),
               let uiImage = UIImage(data: data) else {
             return nil
         }
 
-        return Image(uiImage: uiImage)
+        return uiImage
     }
     
     // Add this function to start automatic refreshing
@@ -523,7 +1065,7 @@ struct SichtungView: View {
                 
                 if !isRefreshing {
                     Task {
-                        await viewModel.fetchSichtungen()
+                        viewModel.fetchSichtungen()
                     }
                 }
             }
@@ -543,6 +1085,18 @@ struct SichtungView: View {
                 return viewModel.sichtungen.filter { $0.title.contains(searchText) || $0.yolostatus.contains(searchText) || $0.body.contains(searchText)} 
             }
         }
+
+    private func sichtung(for id: Int64) -> Wildsichtung? {
+        viewModel.sichtungen.first { $0.id == id }
+    }
+
+    private func setPinned(_ isPinned: Bool, for id: Int64) {
+        guard let index = viewModel.sichtungen.firstIndex(where: { $0.id == id }) else {
+            return
+        }
+
+        viewModel.sichtungen[index].pinned = isPinned
+    }
 
     private var groupedSearchResults: [SichtungGridRow] {
         let results = searchResults
@@ -667,7 +1221,7 @@ struct SichtungView: View {
     }
 
     private func presentFastScrollHintIfNeeded() {
-        guard !hasSeenFastScrollHint, !showFastScrollHint else { return }
+        guard showsDateScrollControls, !hasSeenFastScrollHint, !showFastScrollHint else { return }
 
         showFastScrollHint = true
         Task {
@@ -685,6 +1239,13 @@ struct SichtungView: View {
         withAnimation(.easeOut(duration: 0.18)) {
             showFastScrollHint = false
         }
+    }
+
+    private func resetDateScrollControls() {
+        dateBadgeLocation = nil
+        showFastScrollHint = false
+        isFastScrollHandleActive = false
+        scrollPositionProgress = min(max(scrollPositionProgress, 0), 1)
     }
 
     private func updateScrollPositionProgress(with markers: [SichtungDateMarker], results: [Wildsichtung]) {
@@ -709,11 +1270,13 @@ struct SichtungView: View {
             return
         }
 
-        scrollPositionProgress = CGFloat(index) / CGFloat(currentResults.count - 1)
+        let progress = CGFloat(index) / CGFloat(currentResults.count - 1)
+        scrollPositionProgress = min(max(progress, 0), 1)
     }
     
     private func updateDateBadge(at location: CGPoint) {
-        guard let marker = nearestDateMarker(to: location) else {
+        guard showsDateScrollControls,
+              let marker = nearestDateMarker(to: location) else {
             return
         }
 
@@ -838,12 +1401,7 @@ struct SichtungView: View {
         }
 
         do {
-            let client = OpenAPIClientAPIConfiguration.shared
-            client.basePath = UserDefaults.standard.string(forKey: "immichurltext")! + "/api"
-            client.customHeaders = [
-                "x-api-key": UserDefaults.standard.string(forKey: "immichapikey")!,
-                "Accept": "application/octet-stream"
-            ]
+            let client = try ImmichAPIConfiguration.current()
 
             let deleteDto = AssetBulkDeleteDto(force: false, ids: assetIDs)
             try await AssetsAPI.deleteAssets(assetBulkDeleteDto: deleteDto, apiConfiguration: client)
@@ -864,93 +1422,80 @@ struct SichtungView: View {
            await updateItem(item)
         }
         
-        Task { await viewModel.fetchSichtungen() }
+        viewModel.fetchSichtungen()
     }
     
     func deleteItem(_ item: Wildsichtung) {
         DatabaseManager.shared.deleteSichtung(sichtungId: item.id)
        viewModel.sichtungen.removeAll(where: { $0.id == item.id })
-        Task { await viewModel.fetchSichtungen() }
+        viewModel.fetchSichtungen()
     }
     
     
     func sendPlotCMDPerFTP(_ item: Wildsichtung) async {
-   	
-   	  	
-        let dateFormatter = DateFormatter()
-
-        // Set Date Format
-        dateFormatter.dateFormat = "YYYY-MM-dd HH:mm:ss"
-        let dstr = dateFormatter.string(from: Date.now)
         let secs = Date.now.timeIntervalSince1970
    	
         let filename = "\(item.cameraid)_CMD_\(secs).txt" //this is the file. we will write to and read from it
         let replaced = item.body.replacingOccurrences(of: "Neue Sichtung ", with: "")
         let cm = CommandModel(id: UUID().uuidString, cmd: "GetPLOT", text: replaced, immichid: item.immichid, creationDate: Date.now.formattedString(dateFormat: "yyyy-MM-dd’T’HH:mm:ss"))
         let cmdText = cm.getJsonStringAsBase64()
-        //let cmdText = "CMD:GetPLOT\r\nIMMICHID:\(item.immichid)\r\nDate:\(dstr)\r\n"
-        if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
 
-            let fileURL = dir.appendingPathComponent(filename)
-
-            //writing
-            do {
-                //try cmdText.write(to: fileURL, atomically: false, encoding: .utf8)
-   	
-
-                let ftpHost = UserDefaults.standard.string(forKey: "ftpIP")!
-                let ftpPort = UInt16(UserDefaults.standard.string(forKey: "ftpPort")!)!
-                let normalizedFTPHost = ftpHost.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                let ftpSecurityIndex = UserDefaults.standard.integer(forKey: "ftpSecurityIndex")
-                let ftpSecurity: FTPConnectionSecurity = ftpSecurityIndex == 1 ? .explicitTLS : .none
-                let allowsUntrustedCertificate = ftpSecurity == .explicitTLS && normalizedFTPHost == "upload.wildbild.cloud"
-                let credentials = FTPCredentials(
-                    host: ftpHost,
-                    port: ftpPort,
-                    username: UserDefaults.standard.string(forKey: "ftpUser")!,
-                    password: UserDefaults.standard.string(forKey: "ftpPassword")!,
-                    security: ftpSecurity,
-                    allowsUntrustedTLSCertificate: allowsUntrustedCertificate
-                )
-                let remotePath = ""
-                let ftpClient = await FTPClient(credentials: credentials, remotePath: remotePath)
-                let filesToUpload: [FTPUploadable] = [
-                    //.file(url: fileURL, remoteFileName: filename),
-                    .data(data: Data(cmdText.utf8), remoteFileName: filename)
-                ]
-                
-                
-                try await ftpClient.upload(files: filesToUpload) { progress in
-                        print("Overall progress: \(progress.fractionCompleted * 100)%")
-                    }
-                    print("All files uploaded successfully.")
-            }
-            catch {
-                    print("Error writing file \(error)")
+        do {
+            let ftpHost = (UserDefaults.standard.string(forKey: "ftpIP") ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let ftpPortText = (UserDefaults.standard.string(forKey: "ftpPort") ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let ftpUser = (UserDefaults.standard.string(forKey: "ftpUser") ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let ftpPassword = UserDefaults.standard.string(forKey: "ftpPassword") ?? ""
+            guard !ftpHost.isEmpty,
+                  let ftpPort = UInt16(ftpPortText),
+                  !ftpUser.isEmpty,
+                  !ftpPassword.isEmpty else {
+                print("FTP Einstellungen sind unvollständig oder der Port ist ungültig.")
+                return
             }
 
-           
+            let normalizedFTPHost = ftpHost.lowercased()
+            let ftpSecurityIndex = UserDefaults.standard.integer(forKey: "ftpSecurityIndex")
+            let ftpSecurity: FTPConnectionSecurity = ftpSecurityIndex == 1 ? .explicitTLS : .none
+            let allowsUntrustedCertificate = ftpSecurity == .explicitTLS && normalizedFTPHost == "upload.wildbild.cloud"
+            let credentials = FTPCredentials(
+                host: ftpHost,
+                port: ftpPort,
+                username: ftpUser,
+                password: ftpPassword,
+                security: ftpSecurity,
+                allowsUntrustedTLSCertificate: allowsUntrustedCertificate
+            )
+            let ftpClient = FTPClient(credentials: credentials, remotePath: "")
+            let filesToUpload: [FTPUploadable] = [
+                .data(data: Data(cmdText.utf8), remoteFileName: filename)
+            ]
+
+            try await ftpClient.upload(files: filesToUpload) { progress in
+                print("Overall progress: \(progress.fractionCompleted * 100)%")
+            }
+            print("All files uploaded successfully.")
+        } catch {
+            print("Error writing file \(error)")
         }
     }
     
     func pinItem(_ item: Wildsichtung) {
-        if(item.pinned) {
-            DatabaseManager.shared.updatePinned(iid: item.immichid, pinned: false)
-        }else{
-            DatabaseManager.shared.updatePinned(iid: item.immichid, pinned: true)
-        }
-       print("pinned")
+        let newPinnedState = !item.pinned
+        _ = DatabaseManager.shared.updatePinned(iid: item.immichid, pinned: newPinnedState)
+        setPinned(newPinnedState, for: item.id)
+        print("pinned")
         
-        Task { await viewModel.fetchSichtungen() }
+        viewModel.fetchSichtungen()
     }
     
     func updateItem(_ item: Wildsichtung) async {
        
         do {
            
-            let client = OpenAPIClientAPIConfiguration.shared
-            client.basePath = UserDefaults.standard.string(forKey: "immichurltext")!+"/api"
-            client.customHeaders = ["x-api-key":UserDefaults.standard.string(forKey: "immichapikey")!,"Accept":"application/octet-stream"]
+            let client = try ImmichAPIConfiguration.current()
    	   	  
    	 	    
             let version = try await ServerAPI.getVersionHistory(apiConfiguration: client)
@@ -967,11 +1512,11 @@ struct SichtungView: View {
             
             let dt = Data(data)
             let ab = (dt.base64EncodedString())
-            let result = DatabaseManager.shared.updateImage(iid: item.immichid, imagebase64: ab)
+            _ = DatabaseManager.shared.updateImage(iid: item.immichid, imagebase64: ab)
    	   	  
    	 	    
             try fileManager.removeItem(at: url)
-            Task { await viewModel.fetchSichtungen() }
+            viewModel.fetchSichtungen()
           
         } catch{
             print("Get Image Date Error:\(error)")
@@ -989,9 +1534,7 @@ struct SichtungView: View {
        
         do {
            
-            let client = OpenAPIClientAPIConfiguration.shared
-            client.basePath = "https://immich/api"
-            client.customHeaders = ["x-api-key":UserDefaults.standard.string(forKey: "immichapikey")!,"Accept":"application/octet-stream"]
+            let client = try ImmichAPIConfiguration.current()
    	   	  
    	 	    
             let version = try await ServerAPI.getVersionHistory(apiConfiguration: client)
@@ -1000,10 +1543,10 @@ struct SichtungView: View {
             var uuids: [String] = []
             uuids.append(item.immichid)
             let assetBulkDeleteDto = AssetBulkDeleteDto(force: false, ids: uuids)
-            let response =  try await AssetsAPI.deleteAssetsWithRequestBuilder(assetBulkDeleteDto: assetBulkDeleteDto, apiConfiguration: client)
+            try await AssetsAPI.deleteAssets(assetBulkDeleteDto: assetBulkDeleteDto, apiConfiguration: client)
             //downloadAsset(id: item.immichid, key: nil, apiConfiguration: client)
             
-            print(response)
+            print("Immich image moved to trash: \(item.immichid)")
           
         } catch{
             print("Delete Image Date Error:\(error)")
@@ -1023,6 +1566,62 @@ struct SichtungView: View {
                viewModel.sichtungen = DatabaseManager.shared.getAllSichtungen()
            }
        }
+}
+
+private struct BackupProgressOverlay: View {
+    let progress: BackupOperationProgress
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.22)
+                .ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 12) {
+                    Image(systemName: "externaldrive.badge.icloud")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(Color.accentColor)
+                        .frame(width: 42, height: 42)
+                        .background(Color.accentColor.opacity(0.14), in: Circle())
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(progress.title)
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                        Text(progress.message)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer(minLength: 10)
+
+                    Text(progress.percentText)
+                        .font(.system(.title3, design: .rounded).weight(.bold))
+                        .monospacedDigit()
+                        .foregroundStyle(.primary)
+                        .frame(minWidth: 58, alignment: .trailing)
+                }
+
+                ProgressView(value: progress.clampedProgress)
+                    .progressViewStyle(.linear)
+                    .tint(.accentColor)
+                    .scaleEffect(x: 1, y: 1.3, anchor: .center)
+                    .accessibilityLabel("Backup Fortschritt")
+                    .accessibilityValue(progress.percentText)
+            }
+            .padding(18)
+            .frame(maxWidth: 420)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(.white.opacity(0.28), lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(0.22), radius: 18, x: 0, y: 10)
+            .padding(.horizontal, 24)
+        }
+    }
 }
 
 private struct SichtungScrollPositionBadge: View {

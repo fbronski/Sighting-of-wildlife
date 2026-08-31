@@ -1,6 +1,61 @@
 //  Copyright © 2026 FBronski. All rights reserved.
 
+import Foundation
 import SwiftUI
+
+enum ImmichConfigurationError: LocalizedError {
+    case missingServerURL
+    case invalidServerURL(String)
+    case missingAPIKey
+
+    var errorDescription: String? {
+        switch self {
+        case .missingServerURL:
+            return "Die Immich Server-URL fehlt."
+        case .invalidServerURL(let value):
+            return "Die Immich Server-URL ist ungültig: \(value)"
+        case .missingAPIKey:
+            return "Der Immich API-Key fehlt."
+        }
+    }
+}
+
+enum ImmichAPIConfiguration {
+    static func current(defaults: UserDefaults = .standard) throws -> OpenAPIClientAPIConfiguration {
+        let serverURLText = (defaults.string(forKey: "immichurltext") ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let apiKey = (defaults.string(forKey: "immichapikey") ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !serverURLText.isEmpty else {
+            throw ImmichConfigurationError.missingServerURL
+        }
+
+        guard let url = URL(string: serverURLText),
+              let scheme = url.scheme?.lowercased(),
+              ["http", "https"].contains(scheme),
+              url.host != nil else {
+            throw ImmichConfigurationError.invalidServerURL(serverURLText)
+        }
+
+        guard !apiKey.isEmpty else {
+            throw ImmichConfigurationError.missingAPIKey
+        }
+
+        var normalizedServerURLText = serverURLText
+        while normalizedServerURLText.hasSuffix("/") {
+            normalizedServerURLText.removeLast()
+        }
+
+        return OpenAPIClientAPIConfiguration(
+            basePath: "\(normalizedServerURLText)/api",
+            customHeaders: [
+                "x-api-key": apiKey,
+                "Accept": "application/octet-stream"
+            ]
+        )
+    }
+}
 
 extension Color {
     init(hex: Int, alpha: Double = 1) {

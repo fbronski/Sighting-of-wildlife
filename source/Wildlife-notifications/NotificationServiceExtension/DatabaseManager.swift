@@ -23,17 +23,25 @@ class DatabaseManager {
 
     let appGroupId = "group.de.unicomedv.WildSichtung"
     let fileManager = FileManager.default
+
+    private var databaseFileURL: URL? {
+        fileManager
+            .containerURL(forSecurityApplicationGroupIdentifier: appGroupId)?
+            .appendingPathComponent("WildSichtung.db")
+    }
     
     private init() {
         //var filepath = AppDelegate.documentsDirectoryUrl()
-        var filepath = fileManager.containerURL(forSecurityApplicationGroupIdentifier: appGroupId)
-        filepath = filepath?.appendingPathComponent("WildSichtung.db")
+        guard let filepath = databaseFileURL else {
+            print("Unable to open database. App group is unavailable.")
+            return
+        }
         
-        //try? fileManager.removeItem(at: filepath!)
-        print("Using shared App Path: \(filepath!.path)")
+        //try? fileManager.removeItem(at: filepath)
+        print("Using shared App Path: \(filepath.path)")
         
         do {
-            db = try Connection(filepath!.path)
+            db = try Connection(filepath.path)
             createTable()
         } catch {
             db = nil
@@ -64,15 +72,22 @@ class DatabaseManager {
     }
     
     func deleteAndCreateNew() {
+        guard let filepath = databaseFileURL else {
+            db = nil
+            print("Unable to open database. App group is unavailable.")
+            return
+        }
+
         do {
-        var filepath = fileManager.containerURL(forSecurityApplicationGroupIdentifier: appGroupId)
-        filepath = filepath?.appendingPathComponent("WildSichtung.db")
-        try fileManager.removeItem(at: filepath!)
+        db = nil
+        if fileManager.fileExists(atPath: filepath.path) {
+            try fileManager.removeItem(at: filepath)
+        }
         
-        print("Removeing shared App SQlite DB: \(filepath!.path)")
+        print("Removeing shared App SQlite DB: \(filepath.path)")
         
        
-            db = try Connection(filepath!.path)
+            db = try Connection(filepath.path)
             createTable()
         } catch {
             db = nil
@@ -130,7 +145,11 @@ class DatabaseManager {
         var wildList = [Wildsichtung]()
         
         do {
-            for ws in try db!.prepare(sichtung.order(creationDate.desc)){
+            guard let db else {
+                return wildList
+            }
+
+            for ws in try db.prepare(sichtung.order(creationDate.desc)){
                 let wildsichtung = Wildsichtung(id: ws[id], title: ws[title], subtitle: ws[subTitle], body: ws[body], immichid: ws[immichid], yolostatus: ws[yolostatus], imagebase64: ws[imagebase64], creationDate: ws[creationDate], pinned: ws[pinned])
                 wildList.append(wildsichtung)
             }
@@ -143,22 +162,27 @@ class DatabaseManager {
     
     
     func IsAnyNotifyPinned() -> Bool {
-        var isPinned: Bool = false
         do {
-            for ws in try db!.prepare(sichtung.filter(pinned == true).order(creationDate.desc)){
-                isPinned = true
+            guard let db else {
+                return false
             }
+
+            return try db.pluck(sichtung.filter(pinned == true).order(creationDate.desc)) != nil
         } catch {
             print("Select failed. Error: \(error)")
         }
         
-        return isPinned
+        return false
     }
     
     func SyncAllEmptyImageSichtungen(){
         do {
-            for row in try db!.prepare("SELECT id, immichid FROM WildSichtung WHERE imagebase64 = ''") {
-                   print("id: \(row[0]), immichid: \(row[1])")
+            guard let db else {
+                return
+            }
+
+            for row in try db.prepare("SELECT id, immichid FROM WildSichtung WHERE imagebase64 = ''") {
+                   print("id: \(String(describing: row[0])), immichid: \(String(describing: row[1]))")
                    // id: Optional(2), email: Optional("betty@icloud.com")
                    // id: Optional(3), email: Optional("cathy@icloud.com")
                }

@@ -90,7 +90,7 @@ private struct DecodedImageResult: @unchecked Sendable {
 
 struct CardView: View {
     
-    @State var wildsichtung: Wildsichtung
+    @State private var wildsichtung: Wildsichtung
     @AppStorage("languageIndex") private var languageIndex = 0
     @State public var isPinned: Bool
     @State private var image: UIImage?
@@ -106,32 +106,46 @@ struct CardView: View {
 
     private let fileManager = FileManager.default
     private let columnCount: Int
+    private let pinnedValue: Bool
+    private let onOpen: (() -> Void)?
+    private let onPinnedChange: ((Bool) -> Void)?
     private var density: SichtungCardDensity { SichtungCardDensity(columnCount: columnCount) }
     private var cacheKey: String { "\(wildsichtung.immichid)-\(Int(density.maxPixelSize))" }
     private var imageBackgroundColor: Color { Color(.systemBackground) }
     private var pinToggleColor: Color {
         if isPinned {
-            return .accentColor
+            return .accentColor.opacity(0.68)
         }
 
-        return density.overlaysPinToggle ? .primary : .secondary
+        return .primary.opacity(0.42)
     }
-    
-    init(wildsichtung: Wildsichtung, isPinned: Bool, columnCount: Int = 1) {
+
+    init(
+        wildsichtung: Wildsichtung,
+        isPinned: Bool,
+        columnCount: Int = 1,
+        onOpen: (() -> Void)? = nil,
+        onPinnedChange: ((Bool) -> Void)? = nil
+    ) {
         self.wildsichtung = wildsichtung
         self.isPinned = isPinned
         self.columnCount = columnCount
+        self.pinnedValue = isPinned
+        self.onOpen = onOpen
+        self.onPinnedChange = onPinnedChange
     }
     
     var body: some View {
         VStack(alignment: .leading, spacing: density.spacing) {
-            ZStack(alignment: .topTrailing) {
+            ZStack(alignment: .topLeading) {
                 imageContent
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        onOpen?()
+                    }
 
-                if density.overlaysPinToggle {
-                    pinToggle
-                        .padding(4)
-                }
+                pinToggle
+                    .padding(4)
             }
 
             VStack(alignment: .leading, spacing: density.spacing) {
@@ -141,10 +155,11 @@ struct CardView: View {
                         .lineLimit(density.titleLineLimit)
                         .foregroundStyle(.primary)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            onOpen?()
+                        }
 
-                    if !density.overlaysPinToggle {
-                        pinToggle
-                    }
                 }
 
                 if density.showsStatus {
@@ -152,6 +167,10 @@ struct CardView: View {
                         .lineLimit(density.statusLineLimit)
                         .font(density.statusFont)
                         .foregroundStyle(Color.green)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            onOpen?()
+                        }
                 }
 
                 if density.showsBody {
@@ -159,6 +178,10 @@ struct CardView: View {
                         .lineLimit(density.bodyLineLimit)
                         .font(density.bodyFont)
                         .foregroundStyle(.primary)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            onOpen?()
+                        }
                 }
             }
             .padding(density.contentPadding)
@@ -190,12 +213,17 @@ struct CardView: View {
             image = nil
             loadImageIfNeeded()
         }
+        .onChange(of: pinnedValue) {
+            isPinned = pinnedValue
+        }
     }
 
     private var pinToggle: some View {
         Button {
-            isPinned.toggle()
-            _ = DatabaseManager.shared.updatePinned(iid: wildsichtung.immichid, pinned: isPinned)
+            let newPinnedState = !isPinned
+            isPinned = newPinnedState
+            _ = DatabaseManager.shared.updatePinned(iid: wildsichtung.immichid, pinned: newPinnedState)
+            onPinnedChange?(newPinnedState)
             print(isPinned)
         } label: {
             Image(systemName: isPinned ? "checkmark.circle.fill" : "circle")
@@ -203,7 +231,7 @@ struct CardView: View {
                 .foregroundStyle(pinToggleColor)
                 .frame(width: 28, height: 28)
                 .contentShape(Circle())
-                .shadow(color: density.overlaysPinToggle ? .black.opacity(0.25) : .clear, radius: 1, x: 0, y: 1)
+                .shadow(color: .black.opacity(0.16), radius: 1, x: 0, y: 1)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(isPinned ? "Checked" : "Unchecked")
@@ -212,13 +240,17 @@ struct CardView: View {
     private var imageContent: some View {
         Group {
             if let image {
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: density == .full ? .fit : .fill)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: density.imageHeight)
-                    .clipped()
-                    .background(imageBackgroundColor)
+                GeometryReader { proxy in
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: density == .full ? .fit : .fill)
+                        .frame(width: proxy.size.width, height: density.imageHeight)
+                        .clipped()
+                        .background(imageBackgroundColor)
+                }
+                .frame(height: density.imageHeight)
+                .background(imageBackgroundColor)
+                .clipped()
             } else if isLoading {
                 if density == .thumbnail {
                     ProgressView()
@@ -305,12 +337,7 @@ struct CardView: View {
 
     private func fetchImageData(cacheKey: NSString) async {
         do {
-            let client = OpenAPIClientAPIConfiguration.shared
-            client.basePath = UserDefaults.standard.string(forKey: "immichurltext")! + "/api"
-            client.customHeaders = [
-                "x-api-key": UserDefaults.standard.string(forKey: "immichapikey")!,
-                "Accept": "application/octet-stream"
-            ]
+            let client = try ImmichAPIConfiguration.current()
 
             let response = try await AssetsAPI.downloadAsset(id: wildsichtung.immichid, key: nil, apiConfiguration: client)
             try Task.checkCancellation()

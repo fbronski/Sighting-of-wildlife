@@ -10,6 +10,7 @@ import SwiftUI
 struct TimePickerSheet: View {
   // MARK: - Environment
   @Environment(\.timePickerStyle) private var style
+  @AppStorage("languageIndex") private var languageIndex = 0
 
   // MARK: - Properties
   @Binding var draftDuration: DurationValue
@@ -65,27 +66,18 @@ struct TimePickerSheet: View {
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) {
-            if #available(iOS 26.0, *) {
-                Button(role: .cancel) {
-                    isPresenting = false
-                    isCanceled = true
-                     }
-            } else {
-                // Fallback on earlier versions
-            }
+          Button(appText(.cancel, languageIndex: languageIndex), role: .cancel) {
+            isPresenting = false
+            isCanceled = true
+          }
         }
         ToolbarItem(placement: .confirmationAction) {
-            if #available(iOS 26.0, *) {
-                Button(role: .confirm) {
-                    value = draftDuration.isEmpty ? nil : draftDuration.timeInterval
-                    isPresenting = false
-                    isCanceled = false
-                    
-                }
-                .foregroundStyle(style.accentColor)
-            } else {
-                // Fallback on earlier versions
-            }
+          Button(appText(.continueAction, languageIndex: languageIndex)) {
+            value = draftDuration.isEmpty ? nil : draftDuration.timeInterval
+            isPresenting = false
+            isCanceled = false
+          }
+          .foregroundStyle(style.accentColor)
         }
       }  // toolbar
       .presentationDetents(style.detents)

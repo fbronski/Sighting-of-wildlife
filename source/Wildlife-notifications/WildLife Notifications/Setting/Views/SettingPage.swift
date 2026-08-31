@@ -110,7 +110,7 @@ struct SettingPageView<Content>: View where Content: View {
     var navigationTitleDisplayMode = SettingPage.NavigationTitleDisplayMode.inline
     var isInitialPage = false
     @ViewBuilder var content: Content
-    
+
     var body: some View {
 #if os(iOS)
         let navigationBarTitleDisplayMode: NavigationBarItem.TitleDisplayMode = {

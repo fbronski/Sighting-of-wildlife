@@ -3,13 +3,22 @@
 
 import SwiftUI
 
+private enum RootTab: Hashable {
+    case sichtungen
+    case archive
+    case settings
+}
+
 @MainActor
 struct RootView: View {
     @State var viewModel: RootViewModel
+    let appDelegate: AppDelegate
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage("languageIndex") private var languageIndex = 0
     @AppStorage("hasAskedPreferredAppLanguage") private var hasAskedPreferredAppLanguage = false
     @State private var detectedLanguage: AppLanguage?
     @State private var showPreferredLanguageAlert = false
+    @State private var selectedTab: RootTab = .sichtungen
 
     private var selectedLanguage: AppLanguage {
         AppLanguage.language(for: languageIndex)
@@ -20,23 +29,38 @@ struct RootView: View {
     }
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             SichtungView(viewModel: viewModel)
                 .tabItem {
                     Label(appText(.wildSightings, languageIndex: languageIndex), systemImage: "photo.artframe.circle")
                 }
+                .tag(RootTab.sichtungen)
+
             ContentView(viewModel: viewModel)
                 .tabItem {
                     Label(appText(.archiveImmich, languageIndex: languageIndex), systemImage: "archivebox.circle")
                 }
+                .tag(RootTab.archive)
+
             SettingsView(viewModel: $viewModel)
                 .tabItem {
                     Label(appText(.settings, languageIndex: languageIndex), systemImage: "gear.circle")
                 }
+                .tag(RootTab.settings)
         }
         .environment(\.locale, selectedLocale)
         .onAppear {
             preparePreferredLanguagePromptIfNeeded()
+            updateSichtungVisibility()
+        }
+        .onChange(of: selectedTab) { _, _ in
+            updateSichtungVisibility()
+        }
+        .onChange(of: scenePhase) { _, _ in
+            updateSichtungVisibility()
+        }
+        .onDisappear {
+            appDelegate.setSichtungViewVisible(false)
         }
         .alert(appText(.confirmUseLanguage, languageIndex: languageIndex), isPresented: $showPreferredLanguageAlert, presenting: detectedLanguage) { language in
             Button(String(format: appText(.useLanguageButton, languageIndex: languageIndex), language.name)) {
@@ -49,6 +73,10 @@ struct RootView: View {
         } message: { language in
             Text(String(format: appText(.detectedLanguageMessage, languageIndex: languageIndex), language.name))
         }
+    }
+
+    private func updateSichtungVisibility() {
+        appDelegate.setSichtungViewVisible(selectedTab == .sichtungen && scenePhase == .active)
     }
 
     private func preparePreferredLanguagePromptIfNeeded() {
@@ -77,7 +105,7 @@ struct RootView: View {
 //#if DEBUG
 
 #Preview {
-    RootView(viewModel: RootViewModel())
+    RootView(viewModel: RootViewModel(), appDelegate: AppDelegate())
 }
 
 //#endif
