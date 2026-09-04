@@ -57,7 +57,8 @@ https://github.com/user-attachments/assets/aa03d0c9-833c-42d2-a658-3a0d7d6f8485
 ### 6. Joy and Fun with your Sighting of Wildlife ###
    - If it is to heavy for you to install it from scratch ask on support@unicomedv.de for Support etc.
    - Or doit by your self and Install the IOS Wild Sichtung App
-     <img width="322" height="323" alt="grafik" src="https://github.com/user-attachments/assets/d679708d-6a66-47d8-aa70-9ab6fbe82c68" />
+
+<img width="322" height="323" alt="IOS App" src="https://github.com/user-attachments/assets/d679708d-6a66-47d8-aa70-9ab6fbe82c68" />
 
    
 
